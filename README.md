@@ -1,0 +1,2 @@
+# LuxiQR
+Luxuri QR Code
