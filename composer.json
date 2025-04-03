@@ -1,0 +1,15 @@
+{
+  "name": "supergnaw/luxiqr",
+  "description": "Class for creating QR codes",
+  "type": "library",
+  "license": "AGPL-3.0",
+  "autoload": {
+    "psr-4": {
+      "supergnaw\\LuxiQR\\": "src/"
+    }
+  },
+  "require": {
+    "ext-mbstring": "*",
+    "ext-iconv": "*"
+  }
+}
