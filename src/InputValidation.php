@@ -6,25 +6,45 @@ namespace supergnaw\LuxiQR;
 
 trait InputValidation
 {
-    protected function validateData(int|string $data = null): string
+    /**
+     * Validates input data is not empty or null
+     *
+     * @param int|string|null $data
+     * @return string
+     */
+    public function validateData(int|string $data = null): string
     {
         if (strlen(strval($data)) > 0) return strval($data);
 
         throw new LuxiQRException("Invalid or empty data provided");
     }
 
-    protected function validateECCLevel(string $eccLevel = null): string
+    /**
+     * Validates error correction level or defaults to medium if null
+     *
+     * @param string|null $eccLevel
+     * @return string
+     */
+    public function validateECCLevel(string $eccLevel = null): string
     {
-        return match (strtoupper(strval($eccLevel))) {
+        if (strlen(trim(strval($eccLevel))) == 0) return self::EC_MEDIUM;
+
+        return match (strtoupper(strval($eccLevel))[0]) {
             self::EC_LOW => self::EC_LOW,
             self::EC_QUARTILE => self::EC_QUARTILE,
-            "", self::EC_MEDIUM => self::EC_MEDIUM,
+            self::EC_MEDIUM => self::EC_MEDIUM,
             self::EC_HIGH => self::EC_HIGH,
             default => throw new LuxiQRException("Invalid ECC level: $eccLevel")
         };
     }
 
-    protected function validateMode(string $mode = null): string
+    /**
+     * Validates encoding mode or detects it if null
+     *
+     * @param string|null $mode
+     * @return string
+     */
+    public function validateMode(string $mode = null): string
     {
         return match (strtolower(strval($mode))) {
             "" => $this->detectEncodingMode(),
@@ -36,7 +56,13 @@ trait InputValidation
         };
     }
 
-    protected function validateVersion(int $version = null): int
+    /**
+     * Validates the version number or detects it if null
+     *
+     * @param int|null $version
+     * @return int
+     */
+    public function validateVersion(int $version = null): int
     {
         if (is_null($version)) return $this->detectVersion();
 

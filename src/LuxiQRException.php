@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace supergnaw\LuxiQR;
 
+// TODO: split up and create new and exciting exceptions just to be cool
+
 class LuxiQRException extends \RuntimeException
 {
     /**

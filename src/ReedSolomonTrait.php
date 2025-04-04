@@ -14,14 +14,11 @@ trait ReedSolomonTrait
      * @param string|null $eccLevel
      * @return array
      */
-    protected function splitDataBlocks(string $encodedData, int $version = null, string $eccLevel = null): array
+    protected function splitDataBlocks(): void
     {
-        $version = $version ?? $this->version;
-        $eccLevel = $eccLevel ?? $this->eccLevel;
+        $encodedData = $this->bitsToBytes($this->encodedData);
 
-        $encodedData = $this->bitsToBytes($encodedData);
-
-        $groups = self::BYTE_COUNT_TABLE[$version][$eccLevel]["groups"];
+        $groups = self::BYTE_COUNT_TABLE[$this->version][$this->eccLevel]["groups"];
 
         $chunks = [];
         $offset = 0;
@@ -33,7 +30,7 @@ trait ReedSolomonTrait
             }
         }
 
-        return $chunks;
+        $this->dataBlocks = $chunks;
     }
 
     /**
@@ -42,30 +39,30 @@ trait ReedSolomonTrait
      * @param array $blocks
      * @return array
      */
-    protected function generateEccBlocks(array $blocks): array
+    protected function generateEccBlocks(): void
     {
         $eccBlocks = [];
 
         $eccBytes = self::BYTE_COUNT_TABLE[$this->version][$this->eccLevel]["ecc"];
         $generator = $this->getGeneratorPolynomial(degree: $eccBytes - 1);
 
-        foreach ($blocks as $block) {
+        foreach ($this->dataBlocks as $block) {
             $eccBlocks[] = $this->dividePolynomials($block, $generator);
         }
 
-        return $eccBlocks;
+        $this->eccBlocks = $eccBlocks;
     }
 
-    protected function interleaveBlocks(array $dataBlocks, array $eccBlocks): array
+    protected function interleaveBlocks(): void
     {
         $interleaved = [];
 
-        $maxDataLength = max(array_map("count", $dataBlocks));
-        $maxEccLength = max(array_map("count", $eccBlocks));
+        $maxDataLength = max(array_map("count", $this->dataBlocks));
+        $maxEccLength = max(array_map("count", $this->eccBlocks));
 
         // interleave data blocks
         for ($i = 0; $i < $maxDataLength; $i++) {
-            foreach ($dataBlocks as $block) {
+            foreach ($this->dataBlocks as $block) {
                 if (!isset($block[$i])) continue;
 
                 $interleaved[] = $block[$i];
@@ -74,50 +71,13 @@ trait ReedSolomonTrait
 
         // interleave ecc blocks
         for ($i = 0; $i < $maxEccLength; $i++) {
-            foreach ($eccBlocks as $block) {
+            foreach ($this->eccBlocks as $block) {
                 if (!isset($block[$i])) continue;
 
                 $interleaved[] = $block[$i];
             }
         }
 
-        return $interleaved;
+        $this->interleavedBlocks = $interleaved;
     }
-
-
-//     This was the old function and it didn't work so I gave up and started over with generateECCBlocks() instead
-//    protected function deprecated_getErrorCorrectionCodewords(array $dataCodewords): array
-//    {
-//        $eccCount = self::BYTE_COUNT_TABLE[$this->version][$this->eccLevel]['ecc'];
-//
-//        $generatorPoly = $this->getGeneratorPolynomial($eccCount);
-//        $ecCodewords = array_fill(0, $eccCount, 0);
-//
-//        foreach ($dataCodewords as $dataCodeword) {
-//            // XOR the current byte with the first codeword
-//            $term = $dataCodeword ^ $ecCodewords[0];
-//
-//            // shift codewords to the left
-//            array_shift($ecCodewords);
-//
-//            // XOR and assign the generator polynomial and term product with the codewords
-//            for ($i = 0; $i < count($generatorPoly); $i++) {
-//                $product = $this->galoisFieldMultiply($term, $generatorPoly[$i]);
-//                // i forget why I'm XORing with zero, but 0 XOR'd with 0 is 1, so that might be why
-//                $ecCodewords[$i] ^= $product;
-//                /*
-//                try {
-//                    $product = $this->galoisFieldMultiply($term, $generatorPoly[$i]);
-//                    $ecCodewords[$i] ^= $product;
-//                } catch (\Exception $e) {
-//                    var_dump($i);
-//                    var_dump($e->getMessage());
-//                    var_dump(count($ecCodewords));
-//                    var_dump(count($generatorPoly));
-//                }/**/
-//            }
-//        }
-//
-//        return $ecCodewords;
-//    }
 }

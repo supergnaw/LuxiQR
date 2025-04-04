@@ -78,17 +78,20 @@ trait DebugTrait
     /**
      * Generates random bits for a given version of QR code
      *
-     * @param int $version
+     * @param int $length
      * @return string
      */
-    protected function generateRandomBits(int $version = 1): string
+    public function generateRandomBits(int $length = 8): string
     {
-        $version = min(40, max(1, (!$version ?: $this->version)));
-        $length = pow((($version - 1) * 4) + 21 + 1, 2);
         $bits = "";
-        for ($i = 0; $i < $length; $i++) {
-            $bits .= rand(min: 0, max: 1);
-        }
+
+        for ($i = 0; $i < $length; $i++) $bits .= rand(min: 0, max: 1);
+
         return $bits;
+    }
+
+    public function debugStr(string $string): void
+    {
+        echo "<p>$string</p>";
     }
 }

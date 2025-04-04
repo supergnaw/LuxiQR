@@ -37,7 +37,7 @@ class LuxiQR
     protected const PAD_DATA = "0";
     protected const PAD_ENCODED = "1110110000010001";
 
-    // lookup tables
+    // qr code lookup tables
     protected const CHARACTER_LIMIT_TABLE = [
         "1" => [
             self::EC_LOW => [self::NUMERIC => 41, self::ALPHANUMERIC => 25, self::BYTE => 17, self::KANJI => 10],
@@ -566,7 +566,7 @@ class LuxiQR
     ];
 
     // galois field tables
-    protected array $logTable = [
+    public const LOG_TABLE = [
         null, 0, 1, 25, 2, 50, 26, 198, 3, 223, 51, 238, 27, 104, 199, 75,
         4, 100, 224, 14, 52, 141, 239, 129, 28, 193, 105, 248, 200, 8, 76, 113,
         5, 138, 101, 47, 225, 36, 15, 33, 53, 147, 142, 218, 240, 18, 130, 69,
@@ -584,7 +584,7 @@ class LuxiQR
         203, 89, 95, 176, 156, 169, 160, 81, 11, 245, 22, 235, 122, 117, 44, 215,
         79, 174, 213, 233, 230, 231, 173, 232, 116, 214, 244, 234, 168, 80, 88, 175,
     ];
-    protected array $expTable = [
+    public const EXP_TABLE = [
         1, 2, 4, 8, 16, 32, 64, 128, 29, 58, 116, 232, 205, 135, 19, 38,
         76, 152, 45, 90, 180, 117, 234, 201, 143, 3, 6, 12, 24, 48, 96, 192,
         157, 39, 78, 156, 37, 74, 148, 53, 106, 212, 181, 119, 238, 193, 159, 35,
@@ -600,16 +600,20 @@ class LuxiQR
         130, 25, 50, 100, 200, 141, 7, 14, 28, 56, 112, 224, 221, 167, 83, 166,
         81, 162, 89, 178, 121, 242, 249, 239, 195, 155, 43, 86, 172, 69, 138, 9,
         18, 36, 72, 144, 61, 122, 244, 245, 247, 243, 251, 235, 203, 139, 11, 22,
-        44, 88, 176, 125, 250, 233, 207, 131, 27, 54, 108, 216, 173, 71, 142, 1,
+        44, 88, 176, 125, 250, 233, 207, 131, 27, 54, 108, 216, 173, 71, 142, 1
     ];
 
     // module matrix properties
-    protected string $data = "";
     protected string $mode = "";
     protected string $eccLevel = self::EC_MEDIUM;
     protected int $version = 0;
     protected int $matrixSize = 0;
     protected array $moduleMatrix = [];
+    protected string $data = "";
+    protected string $encodedData = "";
+    protected array $dataBlocks = [];
+    protected array $eccBlocks = [];
+    protected array $interleavedBlocks = [];
     protected string $payload = "";
 
     // qr code masking
@@ -635,7 +639,9 @@ class LuxiQR
      * Initializes a new Quick Response Code
      *
      * @param string|int $data
-     * @param string $eccLevel
+     * @param string|null $eccLevel
+     * @param string|null $mode
+     * @param int|null $version
      * @return void
      */
     public function initialize(
@@ -652,20 +658,14 @@ class LuxiQR
         $this->version = $this->validateVersion($version);
 
         // generate payload
-        $encoded = $this->encode();
+        $this->encodeData();
+        $this->splitDataBlocks();
+        $this->generateEccBlocks();
+        $this->interleaveBlocks();
+        $this->payload = $this->bytesToBits($this->interleavedBlocks) . self::REMAINDER_BITS[$this->version];
 
         // generate module matrix
         $this->generateMatrix();
-    }
-
-    protected function generatePayload(): void
-    {
-        $encoded = $this->encode();
-        $dataBlocks = $this->splitDataBlocks($encoded);
-        $eccBlocks = $this->generateECCBlocks($dataBlocks);
-        $interleaved = $this->interleaveBlocks($dataBlocks, $eccBlocks);
-        $payload = $this->bytesToBits($interleaved);
-        $this->payload = $payload . self::REMAINDER_BITS[$this->version];
     }
 
     ///////////////

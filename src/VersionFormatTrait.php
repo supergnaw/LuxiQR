@@ -17,19 +17,15 @@ trait VersionFormatTrait
      * @param string|null $mode
      * @return int
      */
-    protected function detectVersion(string $data = null, string $ecc = null, string $mode = null): int
+    protected function detectVersion(): int
     {
-        $data = $this->validateData($data ?? $this->data);
-        $ecc = $this->validateECCLevel($ecc ?? $this->eccLevel);
-        $mode = $this->validateMode($mode ?? $this->mode);
-
         for ($v = 1; $v <= 40; $v++) {
-            if (strlen($data) <= LuxiQR::CHARACTER_LIMIT_TABLE[$v][$ecc][$mode]) {
+            if (strlen($this->data) <= LuxiQR::CHARACTER_LIMIT_TABLE[$v][$this->eccLevel][$this->mode]) {
                 return $v;
             }
         }
 
-        throw new LuxiQRException("Payload byte count is too large: " . strlen($data));
+        throw new LuxiQRException("Payload byte count is too large: " . strlen($this->data));
     }
 
     /**

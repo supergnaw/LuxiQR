@@ -43,13 +43,25 @@ trait OutputTrait
      * @param int $modulePixelSize
      * @return string
      */
-    public function outputTable(int $modulePixelSize): string
+    public function outputTable(int $modulePixelSize = 15): string
     {
+        $borderSize = $modulePixelSize * 4;
         $output = "
             <style>
-                table.qr-code { border-collapse: collapse; }
+                table.qr-code {
+                    margin: {$borderSize}px;
+                    border: none;
+                    -webkit-box-shadow:0px 0px 0px {$borderSize}px white;
+                    -moz-box-shadow: 0px 0px 0px {$borderSize}px white;
+                    box-shadow: 0px 0px 0px {$borderSize}px white;
+                }
+                table.qr-code tr, table.qr-code td { border: none; }
                 table.qr-code tr { height: {$modulePixelSize}px; }
-                table.qr-code td { width: {$modulePixelSize}px; height: {$modulePixelSize}px; padding: 0; background-color: gray; }
+                table.qr-code td {
+                    width: {$modulePixelSize}px;
+                    height: {$modulePixelSize}px;
+                    padding: 0; background-color: gray;
+                }
                 table.qr-code td.one { background-color: black; }
                 table.qr-code td.zero { background-color: white; }
                 table.qr-code td.two { background-color: blue; }

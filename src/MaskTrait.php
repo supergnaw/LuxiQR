@@ -19,7 +19,7 @@ trait MaskTrait
         for ($maskVersion = 0; $maskVersion <= 7; $maskVersion++) {
             $penalty = $this->calculatePenaltyScore($maskVersion);
 
-            if (!$lowestPenalty or $lowestPenalty > $penalty) {
+            if (!$lowestPenalty || $lowestPenalty > $penalty) {
                 $lowestPenalty = $penalty;
                 $bestMask = $maskVersion;
             }
@@ -38,7 +38,7 @@ trait MaskTrait
      * @param array|null $moduleMatrix
      * @return array
      */
-    protected function applyMask(int $maskVersion, array $moduleMatrix = null): array
+    private function applyMask(int $maskVersion, array $moduleMatrix = null): array
     {
         $maskVersion = min(7, max(0, $maskVersion));
         $maskedModuleMatrix = $moduleMatrix ?? $this->moduleMatrix;
@@ -62,7 +62,7 @@ trait MaskTrait
      * @param int $maskVersion
      * @return bool
      */
-    protected function maskBit(int $row, int $column, int $maskVersion): bool
+    private function maskBit(int $row, int $column, int $maskVersion): bool
     {
         if (!$this->maskMask[$row][$column]) return false;
 
@@ -85,7 +85,7 @@ trait MaskTrait
      * @param int $maskVersion
      * @return int
      */
-    protected function calculatePenaltyScore(int $maskVersion): int
+    private function calculatePenaltyScore(int $maskVersion): int
     {
         if (0 > $maskVersion or 7 < $maskVersion) {
             throw new LuxiQRException("Mask version $maskVersion is out of range");
@@ -113,7 +113,7 @@ trait MaskTrait
      * @param array $moduleMatrix
      * @return int
      */
-    protected function evaluateConsecutiveModules(array $moduleMatrix): int
+    private function evaluateConsecutiveModules(array $moduleMatrix): int
     {
         $penalty = 0;
 
@@ -131,7 +131,7 @@ trait MaskTrait
      * @param array $moduleMatrix
      * @return int
      */
-    protected function evaluateLargeAreas(array $moduleMatrix): int
+    private function evaluateLargeAreas(array $moduleMatrix): int
     {
         $penalty = 0;
 
@@ -155,7 +155,7 @@ trait MaskTrait
      * @param array $moduleMatrix
      * @return int
      */
-    protected function evaluateFinderPatterns(array $moduleMatrix): int
+    private function evaluateFinderPatterns(array $moduleMatrix): int
     {
         preg_match_all('/10111010000|00001011101/', $this->getRowColStrings($moduleMatrix), $matches);
 
@@ -168,7 +168,7 @@ trait MaskTrait
      * @param array $moduleMatrix
      * @return int
      */
-    protected function evaluateDarkLightRatio(array $moduleMatrix): int
+    private function evaluateDarkLightRatio(array $moduleMatrix): int
     {
         $allModules = "";
 

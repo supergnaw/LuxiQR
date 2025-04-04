@@ -40,9 +40,13 @@ class LuxiQRTest extends LuxiQR
         $this->testGeneratorPolynomial();
 
         // error correction trait methods
-        $this->testSplitDataBlocks(); // TODO: this got out of hand and needs some reworking
+        echo "<hr><h2>Error Correction</h2>\n";
+        $this->testSplitDataBlocks();
         $this->testGenerateECCBlocks();
-//        $this->testInterleaveBlocks();
+
+        // output
+        echo "<hr><h2>Output</h2>\n";
+        $this->testOutput();
     }
 
 
@@ -78,20 +82,18 @@ class LuxiQRTest extends LuxiQR
             self::BYTE => "byte"
         ];
 
-        $table = "
-            <table>
-                <tr>
-                    <th>Status</th>
-                    <th>Data</th>
-                    <th>Expected</th>
-                    <th>Result</th>
-                </tr>";
-        $messageTemplate = "<tr><td class='%s'>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>";
+        $table = "<table><tr><th>Status</th><th>Data</th><th>Expected</th><th>Result</th></tr>";
+        $messageTemplate = "
+                            <tr>
+                                <td class='%s'>%s</td>
+                                <td>%s</td>
+                                <td>%s</td>
+                                <td>%s</td>
+                            </tr>";
 
         foreach ($tests as $test) {
-            $this->data = $this->validateData($test["data"]);
-            $result = $this->detectEncodingMode();
-            $status = ($test["expected"] == $result) ? "passed" : "failed";
+            $this->initialize(data: $test["data"]);
+            $status = ($test["expected"] == $this->mode) ? "passed" : "failed";
 
             if ("failed" == $status) $overallPassed = false;
 
@@ -101,7 +103,7 @@ class LuxiQRTest extends LuxiQR
                 $status,
                 $test["data"],
                 $test["expected"] . " / " . $values[$test['expected']],
-                $result . " / " . $values[$result]
+                $this->mode . " / " . $values[$this->mode]
             );
         }
         $table .= "</table>\n";
@@ -156,6 +158,7 @@ class LuxiQRTest extends LuxiQR
             ]
         ];
 
+        $table = "<table><tr><th>Status</th><th>Mode</th><th>ECC</th><th>Data</th><th>Expected</th><th>Result</th></tr>";
         $messageTemplate = "
                         <tr>
                             <td class='%s'>%s</td>
@@ -165,25 +168,15 @@ class LuxiQRTest extends LuxiQR
                             <td style='vertical-align: top; text-align: left;'>%s</td>
                             <td style='vertical-align: top; text-align: left;'>%s</td>
                         </tr>";
-        $table = "
-                    <table>
-                        <tr>
-                            <th>Status</th>
-                            <th>Mode</th>
-                            <th>ECC</th>
-                            <th>Data</th>
-                            <th>Expected</th>
-                            <th>Result</th>
-                        </tr>\n";
 
         foreach ($tests as $test) {
             try {
-                $this->data = $this->validateData($test["data"]);
-                $this->mode = $this->validateMode($test["mode"]);
-                $this->eccLevel = $this->validateECCLevel($test["ecc"]);
-                $this->version = $this->detectVersion();
-                $result = $this->encode();
-                $status = ($result == $test["expected"]) ? "passed" : "failed";
+                $this->initialize(
+                    data: $test["data"],
+                    eccLevel: $test["ecc"],
+                    mode: $test["mode"]
+                );
+                $status = ($this->encodedData == $test["expected"]) ? "passed" : "failed";
             } catch (\Exception $e) {
                 $result = "Exception: " . $e->getMessage();
                 $status = "failed";
@@ -199,8 +192,8 @@ class LuxiQRTest extends LuxiQR
                 $test["ecc"],
                 $test["data"],
                 $this->debugBits($test["expected"]),
-                (preg_match("/^[\s01]+$/", $result))
-                    ? $this->debugBits($result) : $result
+                (preg_match("/^[\s01]+$/", $this->encodedData))
+                    ? $this->debugBits($this->encodedData) : $this->encodedData
             );
         }
         $table .= "</table>\n";
@@ -282,19 +275,19 @@ class LuxiQRTest extends LuxiQR
                     <th>_D</th>
                     <th>_E</th>
                     <th>_F</th>
-                </tr>\n";
+                </tr>";
         for ($i = 0; $i < 256; $i += 16) {
             $l = strtoupper(dechex(intdiv($i, 16)));
             $expTable .= "<tr><th>{$l}_</th>";
             for ($j = 0; $j < 16; $j++) {
                 $k = $i + $j;
-                $status = ($expExpected[$k] == $this->expTable[$k]) ? "passed" : "failed";
+                $status = ($expExpected[$k] == self::EXP_TABLE[$k]) ? "passed" : "failed";
 
                 if ("failed" == $status) $overallPassed = false;
 
-                $expTable .= "<td><span class='$status'>{$expExpected[$k]}</span> / {$this->expTable[$k]}</td>";
+                $expTable .= "<td><span class='$status'>{$expExpected[$k]}</span> / " . self::EXP_TABLE[$k] . "</td>";
             }
-            $expTable .= "</tr>\n";
+            $expTable .= "</tr>";
         }
         $expTable .= "</table>\n";
 
@@ -320,19 +313,19 @@ class LuxiQRTest extends LuxiQR
                     <th>_D</th>
                     <th>_E</th>
                     <th>_F</th>
-                </tr>\n";
+                </tr>";
         for ($i = 0; $i < 256; $i += 16) {
             $l = strtoupper(dechex(intdiv($i, 16)));
             $logTable .= "<tr><th>{$l}_</th>";
             for ($j = 0; $j < 16; $j++) {
                 $k = $i + $j;
-                $status = ($logExpected[$k] == $this->logTable[$k]) ? "passed" : "failed";
+                $status = ($logExpected[$k] == self::LOG_TABLE[$k]) ? "passed" : "failed";
 
                 if ("failed" == $status) $overallPassed = false;
 
-                $logTable .= "<td><span class='$status'>{$logExpected[$k]}</span> / {$this->logTable[$k]}</td>";
+                $logTable .= "<td><span class='$status'>{$logExpected[$k]}</span> / " . self::LOG_TABLE[$k] . "</td>";
             }
-            $logTable .= "</tr>\n";
+            $logTable .= "</tr>";
         }
         $logTable .= "</table>\n";
 
@@ -356,7 +349,6 @@ class LuxiQRTest extends LuxiQR
         $overallPassed = true;
 
         $tests = [
-//            ["a" => 3, "b" => 4, "expected" => $this->galoisFieldMultiplyManual(3, 4)],
             ["a" => 3, "b" => 4, "expected" => 12],
             ["a" => 99, "b" => 227, "expected" => 107],
             ["a" => 252, "b" => 228, "expected" => 47],
@@ -366,10 +358,24 @@ class LuxiQRTest extends LuxiQR
             ["a" => 3, "b" => 90, "expected" => 238],
             ["a" => 0, "b" => 1, "expected" => 0],
             ["a" => 255, "b" => 255, "expected" => 226],
+            ["a" => 87, "b" => 131, "expected" => 226],
+            ["a" => 240, "b" => 170, "expected" => 226],
+//            ["a" => 15, "b" => 5, "expected" => 75],
+//            ["a" => 120, "b" => 45, "expected" => 209],
         ];
 
-        $messageTemplate = "<tr><td class='%s'>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>";
-        $table = "<table><tr><th>status</th><th>a</th><th>b</th><th>expected</th><th>result</th></tr>";
+        $table = "<table><tr><th>Status</th><th>A</th><th>B</th><th>Log(A)</th><th>Log(B)</th><th>Sum</th><th>Expected</th><th>Result</th></tr>";
+        $messageTemplate = "
+            <tr>
+                <td class='%s'>%s</td>
+                <td>%s</td>
+                <td>%s</td>
+                <td>%s</td>
+                <td>%s</td>
+                <td>%s</td>
+                <td>%s</td>
+                <td>%s</td>
+            </tr>";
 
         foreach ($tests as $test) {
             $expected = $test["expected"];
@@ -378,7 +384,17 @@ class LuxiQRTest extends LuxiQR
 
             if ("failed" == $status) $overallPassed = false;
 
-            $table .= sprintf($messageTemplate, $status, $status, $test["a"], $test["b"], $expected, $result);
+            $table .= sprintf(
+                $messageTemplate,
+                $status,
+                $status,
+                $test["a"],
+                $test["b"],
+                self::LOG_TABLE[$test["a"]],
+                self::LOG_TABLE[$test["b"]],
+                self::LOG_TABLE[$test["a"]] + self::LOG_TABLE[$test["b"]],
+                $expected,
+                $result);
         }
         $table .= "</table>\n";
 
@@ -399,18 +415,13 @@ class LuxiQRTest extends LuxiQR
         $overallPassed = true;
 
         $tests = [
-            ["a" => 3, "b" => 4, "expected" => $this->galoisFieldDivideManual(3, 4)],
-            ["a" => 3, "b" => 4, "expected" => 28],
-            ["a" => 7, "b" => 2, "expected" => $this->galoisFieldDivideManual(7, 2)],
-            ["a" => 6, "b" => 5, "expected" => $this->galoisFieldDivideManual(6, 5)],
-            ["a" => 83, "b" => 202, "expected" => $this->galoisFieldDivideManual(83, 202)],
-            ["a" => 159, "b" => 245, "expected" => $this->galoisFieldDivideManual(159, 245)],
-            ["a" => 207, "b" => 198, "expected" => $this->galoisFieldDivideManual(207, 198)],
-            ["a" => 255, "b" => 255, "expected" => $this->galoisFieldDivideManual(255, 255)],
+            ["a" => 15, "b" => 5, "expected" => 166],
+            ["a" => 120, "b" => 45, "expected" => 69],
+            ["a" => 200, "b" => 17, "expected" => 173]
         ];
 
+        $table = "<table><tr><th>Status</th><th>A</th><th>B</th><th>Expected</th><th>Result</th></tr>";
         $messageTemplate = "<tr><td class='%s'>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>";
-        $table = "<table><tr><td>status</td><td>a</td><td>b</td><td>expected</td><td>result</td></tr>";
 
         foreach ($tests as $test) {
             $expected = $test["expected"];
@@ -466,8 +477,8 @@ class LuxiQRTest extends LuxiQR
             ]
         ];
 
+        $table = "<table><tr><th>Status</th><th>A</th><th>B</th><th>Expected</th><th>Result</th></tr>";
         $messageTemplate = "<tr><td class='%s'>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>";
-        $table = "<table><tr><td>status</td><td>a</td><td>b</td><td>expected</td><td>result</td></tr>";
 
         foreach ($tests as $test) {
             $expected = $test["expected"];
@@ -504,12 +515,12 @@ class LuxiQRTest extends LuxiQR
             ]],
         ];
 
+        $table = "<table><tr><th>Status</th><th>Degree</th><th>Expected</th><th>Result</th></tr>";
         $messageTemplate = "<tr><td class='%s'>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>";
-        $table = "<table><tr><td>status</td><td>degree</td><td>expected</td><td>result</td></tr>\n";
 
         foreach ($tests as $test) {
             $expected = $test["expected"];
-            $result = $this->createGeneratorPolynomial($test["d"]);
+            $result = $this->getGeneratorPolynomial($test["d"]);
             $status = ($expected === $result) ? "passed" : "failed";
             if ("failed" == $status) $overallPassed = false;
             $table .= sprintf($messageTemplate, $status, $status, $test["d"], $this->arr2Str($expected), $this->arr2Str($result));
@@ -558,20 +569,19 @@ class LuxiQRTest extends LuxiQR
             ]
         ];
 
+        $table = "<table><tr><th>Status</th><th>Data</th><th>V-ECC</th><th>Expected</th><th>Result</th></tr>";
         $messageTemplate = "<tr><td class='%s'>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>";
-        $table = "<table><tr><td>status</td><td>data</td><td>v-ecc</td><td>expected</td><td>result</td></tr>\n";
 
         foreach ($tests as $test) {
-            $this->data = $test["data"];
-            $this->eccLevel = $test["ecc"];
-            $this->mode = $this->detectEncodingMode();
-            $this->version = $this->detectVersion();
-            $encoded = $this->encode();
-            $blocks = $this->splitDataBlocks($encoded);
+            $this->initialize(
+                data: $test["data"],
+                eccLevel: $test["ecc"]
+            );
+
             $result = [0, 0, 0, 0];
 
-            for ($b = 0; $b < count($blocks); $b++) {
-                $result[$b] = count($blocks[$b]);
+            for ($b = 0; $b < count($this->dataBlocks); $b++) {
+                $result[$b] = count($this->dataBlocks[$b]);
             }
 
             $status = ($test["expected"] == $result) ? "passed" : "failed";
@@ -635,20 +645,17 @@ class LuxiQRTest extends LuxiQR
             ]
         ];
 
+        $table = "<table><tr><th>Status</th><th>Data</th><th>V-ECC</th><th>Expected</th><th>Result</th></tr>";
         $messageTemplate = "<tr><td class='%s'>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>";
-        $table = "<table><tr><td>status</td><td>data</td><td>v-ecc</td><td>expected</td><td>result</td></tr>\n";
 
         foreach ($tests as $test) {
-            $this->data = $test["data"];
-            $this->eccLevel = $test["ecc"];
-            $this->mode = $this->detectEncodingMode();
-            $this->version = $this->detectVersion();
-            $encoded = $this->encode();
-            $blocks = $this->splitDataBlocks($encoded);
-            $ecc = $this->generateECCBlocks($blocks);
+            $this->initialize(
+                data: $test["data"],
+                eccLevel: $test["ecc"]
+            );
             $result = [];
 
-            foreach ($ecc as $e) $result[] = count($e);
+            foreach ($this->eccBlocks as $e) $result[] = count($e);
 
             $status = ($test["expected"] == $result) ? "passed" : "failed";
 
@@ -677,5 +684,69 @@ class LuxiQRTest extends LuxiQR
         );
 
         echo $table;
+    }
+
+    // OUTPUT
+
+    public function testOutput(): void
+    {
+        // test data used is from the thonky qr code tutorial
+        $tests = [
+            [
+                "data" => 8675309,
+                "ecc" => "L",
+                "output" => "raw"
+            ],
+            [
+                "data" => "HELLO WORLD",
+                "ecc" => "M",
+                "output" => "array"
+            ],
+            [
+                "data" => "Hello, world!",
+                "ecc" => "Q",
+                "output" => "table"
+            ],
+            [
+                "data" => "There's a frood who really knows where his towel is.",
+                "ecc" => "H",
+                "output" => "raw"
+            ],
+            [
+                "data" => "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG",
+                "ecc" => "Low",
+                "output" => "array"
+            ],
+            [
+                "data" => "This Pangram contains four a’s, one b, two c’s, one d, thirty e’s, six f’s, five g’s, seven h’s, eleven i’s, one j, one k, two l’s, two m’s, eighteen n’s, fifteen o’s, two p’s, one q, five r’s, twenty-seven s’s, eighteen t’s, two u’s, seven v’s, eight w’s, two x’s, three y’s, & one z.",
+                "ecc" => "M",
+                "output" => "table"
+            ],
+            [
+                "data" =>
+                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis consequat, ligula eget malesuada egestas, augue tortor efficitur tortor, ut rhoncus erat nisi vel metus. Donec tincidunt pharetra tellus, sed tincidunt nibh tempus aliquam. Proin lorem nulla, consequat porttitor massa quis, cursus molestie ante. Fusce ultrices lacinia sapien nec aliquam. Etiam rutrum laoreet tortor placerat viverra. Nam sodales ornare mattis. Pellentesque varius elit a tellus iaculis, a faucibus ante venenatis. Integer non dapibus nisi, id pharetra turpis. Ut et augue auctor elit feugiat laoreet sit amet et dolor. Proin sed turpis vitae quam vehicula fringilla bibendum sit amet ligula. Nullam condimentum dapibus dui ac sodales. In tincidunt nunc lacus, eu varius lectus semper nec. Nam rutrum sed neque ut vulputate." .
+                    "Aliquam at lacus lacus. Nam bibendum lorem vitae varius dignissim. Duis posuere placerat mi, in dictum lacus. Aliquam erat volutpat. Suspendisse congue in ante quis venenatis. Curabitur eget diam sapien. Mauris ac ante facilisis, gravida tellus at, venenatis libero.",
+                "ecc" => "H",
+                "output" => "invalid"
+            ]
+        ];
+
+        foreach ($tests as $test) {
+            $this->initialize(
+                data: $test["data"],
+                eccLevel: $test["ecc"]
+            );
+
+            echo "<h4 class='%s'>Test output: {$test['output']}</h4>";
+            echo "<h5 class='%s'>{$test['data']}</h5>";
+
+            echo match ($test["output"]) {
+                "raw" => "<pre>{$this->outputRawString()}</pre>",
+                "array" => "<pre>{$this->arr2Str($this->outputArray())}</pre>",
+                "table" => $this->outputTable(),
+                "ascii" => $this->outputAscii(),
+                default => "<p>No valid output mmethod chosen.</p>"
+            };
+        }
     }
 }

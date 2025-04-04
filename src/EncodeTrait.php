@@ -9,18 +9,16 @@ trait EncodeTrait
     /**
      * Encodes input data
      *
-     * @param string|null $data
-     * @param string|null $mode
-     * @param string|null $eccLevel
-     * @return string
+     * @return void
      */
-    protected function encode(): string
+    protected function encodeData(): void
     {
         $encodedData = match ($this->mode) {
             self::NUMERIC => $this->encodeNumeric($this->data),
             self::ALPHANUMERIC => $this->encodeAlphanumeric($this->data),
             self::KANJI => $this->encodeKanji($this->data),
-            default => $this->encodeByte($this->data)
+            self::BYTE => $this->encodeByte($this->data),
+            default => throw new LuxiQRException("Encoding mode $this->mode not supported"),
         };
 
         $countIndicator = str_pad(
@@ -33,7 +31,7 @@ trait EncodeTrait
         $encodedData = $this->mode . $countIndicator . $encodedData;
 
         // padding
-        return str_pad( // payload padding
+        $this->encodedData = str_pad( // payload padding
             string: str_pad( // terminator padding
                 string: $encodedData,
                 length: intval(ceil(strlen($encodedData) / 8) * 8),
@@ -47,7 +45,6 @@ trait EncodeTrait
     /**
      * Detects the most appropriate encoding mode
      *
-     * @param string|null $data
      * @return string
      */
     protected function detectEncodingMode(): string
@@ -63,6 +60,21 @@ trait EncodeTrait
         }
 
         return self::BYTE;
+    }
+
+    /**
+     * Detects the number of bits for the count indicator
+     *
+     * @return int
+     */
+    private function detectCountIndicatorSize(): int
+    {
+        // using black magic to detect the proper count indicator size
+        return match ($this->version <= 9 ? 9 : ($this->version <= 26 ? 26 : 40)) {
+            9 => [self::NUMERIC => 10, self::ALPHANUMERIC => 9, self::BYTE => 8, self::KANJI => 8][$this->mode],
+            26 => [self::NUMERIC => 12, self::ALPHANUMERIC => 11, self::BYTE => 16, self::KANJI => 10][$this->mode],
+            40 => [self::NUMERIC => 14, self::ALPHANUMERIC => 13, self::BYTE => 16, self::KANJI => 12][$this->mode],
+        };
     }
 
     /**

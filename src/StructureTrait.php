@@ -8,32 +8,9 @@ trait StructureTrait
 {
     protected function generateMatrix(): void
     {
-        if (empty($this->payload)) $this->generatePayload();
-
-        $this->buildModuleMatrix();
-        $this->addDataToMatrix($this->payload);
+        $this->initializeMatrix();
+        $this->addDataToMatrix();
         $this->applyBestMask();
-
-        $this->payload = "";
-    }
-
-    /**
-     * Detects the number of bits for the count indicator
-     *
-     * @param int|null $version
-     * @param string|null $mode
-     * @return int
-     */
-    protected function detectCountIndicatorSize(int $version = null, string $mode = null): int
-    {
-        $version = $version ?? $this->version;
-        $mode = $mode ?? $this->mode;
-
-        return match ($version <= 9 ? 9 : ($version <= 26 ? 26 : 40)) {
-            9 => [self::NUMERIC => 10, self::ALPHANUMERIC => 9, self::BYTE => 8, self::KANJI => 8][$mode],
-            26 => [self::NUMERIC => 12, self::ALPHANUMERIC => 11, self::BYTE => 16, self::KANJI => 10][$mode],
-            40 => [self::NUMERIC => 14, self::ALPHANUMERIC => 13, self::BYTE => 16, self::KANJI => 12][$mode],
-        };
     }
 
     /**
@@ -41,7 +18,7 @@ trait StructureTrait
      *
      * @return void
      */
-    protected function buildModuleMatrix(): void
+    private function initializeMatrix(): void
     {
         $this->moduleMatrix = [];
         $this->maskMask = [];
@@ -60,6 +37,60 @@ trait StructureTrait
     }
 
     /**
+     * Adds data bits to module matrix
+     *
+     * @return void
+     */
+    private function addDataToMatrix(): void
+    {
+        $d = 0;
+
+        for ($x = count($this->moduleMatrix) - 1; $x >= 0; $x -= 4) {
+            // if we ever reach the end of the string, stop processing, but this shouldn't ever happen
+            if ($d >= strlen($this->payload)) break;
+
+            // go up
+            for ($y = count($this->moduleMatrix) - 1; $y >= 0; $y--) {
+                if (!is_numeric($this->moduleMatrix[$y][$x])) {
+                    if ($d >= strlen($this->payload)) break;
+                    $this->moduleMatrix[$y][$x] = intval(substr($this->payload, $d, 1));
+                    $this->maskMask[$y][$x] = true;
+                    $d++;
+                }
+
+                if (!is_numeric($this->moduleMatrix[$y][$x - 1])) {
+                    if ($d >= strlen($this->payload)) break;
+                    $this->moduleMatrix[$y][$x - 1] = intval(substr($this->payload, $d, 1));
+                    $this->maskMask[$y][$x - 1] = true;
+                    $d++;
+                }
+
+            }
+
+            // exception to skip timing pattern column completely
+            if (8 == $x) $x--;
+
+            // go down
+            for ($y = 0; $y <= count($this->moduleMatrix) - 1; $y++) {
+                if (0 > $x - 2) break;
+                if (!is_numeric($this->moduleMatrix[$y][$x - 2])) {
+                    if ($d >= strlen($this->payload)) break;
+                    $this->moduleMatrix[$y][$x - 2] = intval(substr($this->payload, $d, 1));
+                    $this->maskMask[$y][$x - 2] = true;
+                    $d++;
+                }
+
+                if (!is_numeric($this->moduleMatrix[$y][$x - 3])) {
+                    if ($d >= strlen($this->payload)) break;
+                    $this->moduleMatrix[$y][$x - 3] = intval(substr($this->payload, $d, 1));
+                    $this->maskMask[$y][$x - 3] = true;
+                    $d++;
+                }
+            }
+        }
+    }
+
+    /**
      * Adds a 2-dimensional array pattern to the module matrix
      *
      * @param array $pattern
@@ -69,7 +100,7 @@ trait StructureTrait
      * @param bool $allowMask
      * @return void
      */
-    protected function addPatternToMatrix(array $pattern,
+    private function addPatternToMatrix(array $pattern,
                                        int   $row,
                                        int   $column,
                                        bool  $overwrite = false,
@@ -112,7 +143,7 @@ trait StructureTrait
      *
      * @return void
      */
-    protected function addFinderPatterns(): void
+    private function addFinderPatterns(): void
     {
         $finderPattern = [
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -136,7 +167,7 @@ trait StructureTrait
      *
      * @return void
      */
-    protected function addTimingPatterns(): void
+    private function addTimingPatterns(): void
     {
         $length = $this->matrixSize - 16;
         $horizontal = [[]];
@@ -156,7 +187,7 @@ trait StructureTrait
      *
      * @return void
      */
-    protected function addAlignmentPatterns(): void
+    private function addAlignmentPatterns(): void
     {
         $coords = match ($this->version) {
             2 => [6, 18],
@@ -221,60 +252,8 @@ trait StructureTrait
         }
     }
 
-    /**
-     * Adds data bits to $this->moduleMatrix
-     *
-     * @param $data
-     * @return void
-     */
-    protected function addDataToMatrix($data): void
+    private function addBorder(): void
     {
-        $this->buildModuleMatrix();
-
-        $d = 0;
-
-        for ($x = count($this->moduleMatrix) - 1; $x >= 0; $x -= 4) {
-            // if we ever reach the end of the string, stop processing, but this shouldn't ever happen
-            if ($d >= strlen($data)) break;
-
-            // go up
-            for ($y = count($this->moduleMatrix) - 1; $y >= 0; $y--) {
-                if (!is_numeric($this->moduleMatrix[$y][$x])) {
-                    if ($d >= strlen($data)) break;
-                    $this->moduleMatrix[$y][$x] = intval(substr($data, $d, 1));
-                    $this->maskMask[$y][$x] = true;
-                    $d++;
-                }
-
-                if (!is_numeric($this->moduleMatrix[$y][$x - 1])) {
-                    if ($d >= strlen($data)) break;
-                    $this->moduleMatrix[$y][$x - 1] = intval(substr($data, $d, 1));
-                    $this->maskMask[$y][$x - 1] = true;
-                    $d++;
-                }
-
-            }
-
-            // exception to skip timing pattern column completely
-            if (8 == $x) $x--;
-
-            // go down
-            for ($y = 0; $y <= count($this->moduleMatrix) - 1; $y++) {
-                if (0 > $x - 2) break;
-                if (!is_numeric($this->moduleMatrix[$y][$x - 2])) {
-                    if ($d >= strlen($data)) break;
-                    $this->moduleMatrix[$y][$x - 2] = intval(substr($data, $d, 1));
-                    $this->maskMask[$y][$x - 2] = true;
-                    $d++;
-                }
-
-                if (!is_numeric($this->moduleMatrix[$y][$x - 3])) {
-                    if ($d >= strlen($data)) break;
-                    $this->moduleMatrix[$y][$x - 3] = intval(substr($data, $d, 1));
-                    $this->maskMask[$y][$x - 3] = true;
-                    $d++;
-                }
-            }
-        }
+        // TODO: the QR code standard says to add a border of 4 white modules on all sides
     }
 }
