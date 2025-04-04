@@ -5,6 +5,25 @@ Reinventing the wheel, one Quick Response Code at a time.
 This is a project simply to learn how QR code generation works. There are a plethora of QR code generators in the wild,
 so choose which one suits your needs best.
 
+## Currnt Version Inoperable
+
+Although the code technically "generates" something, that something is not a functional QR code. I believe the issue to be with the GF(256) math in regards to the error correction generation.
+
+To view tests along the generation process, use the following:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use supergnaw\LuxiQR\LuxiQR;
+use supergnaw\LuxiQR\LuxiQRTest;
+
+require_once './vendor/autoload.php';
+
+$test = new LuxiQRTest();
+```
+
 ## Various References
 
 * [Barcode Contents](https://github.com/zxing/zxing/wiki/Barcode-Contents)
