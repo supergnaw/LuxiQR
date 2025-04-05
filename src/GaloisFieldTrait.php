@@ -97,7 +97,7 @@ trait GaloisFieldTrait
     }
 
     /**
-     * Multiplies two numbers using GF(256)
+     * Multiplies two numbers using 0x11D GF(256)
      *
      * @param int $a
      * @param int $b
@@ -143,7 +143,7 @@ trait GaloisFieldTrait
     }
 
     /**
-     * Divides two numbers using GF(256)
+     * Divides two numbers using 0x11D GF(256)
      *
      * @param int $n
      * @param int $d
@@ -212,7 +212,7 @@ trait GaloisFieldTrait
     }
 
     /**
-     * Multiplies two polynomials in GF(256)
+     * Multiplies two polynomials using 0x11D GF(256)
      *
      * @param array $polyA
      * @param array $polyB
@@ -237,16 +237,42 @@ trait GaloisFieldTrait
         return $result;
     }
 
-
     /**
-     * Divides two polynomials
+     * Divides two polynomials using 0x11D GF(256)
      *
-     * @param array $dividend
-     * @param array $divisor
-     * @param bool $remainderOnly
-     * @return array
+     * @param array $dividend The message polynomial (will be modified during processing)
+     * @param array $divisor The generator polynomial
+     * @return array The remainder after division
      */
-    protected function dividePolynomials(array $dividend, array $divisor, bool $remainderOnly = true): array
+    protected function dividePolynomials(array $dividend, array $divisor): array
+    {
+        // Work on a copy to avoid modifying the original
+        $remainder = $dividend;
+        $divisorLength = count($divisor);
+
+        // Process each input byte
+        for ($i = 0; $i < count($dividend) - $divisorLength + 1; $i++) {
+            // If the first coefficient is zero, skip this iteration
+            if ($remainder[$i] === 0) {
+                continue;
+            }
+
+            // Get the lead term
+            $leadTerm = $remainder[$i];
+
+            // For each byte in the divisor
+            for ($j = 0; $j < $divisorLength; $j++) {
+                // Multiply the divisor by the lead term and XOR with the remainder
+                $term = $this->galoisFieldMultiply($divisor[$j], $leadTerm);
+                $remainder[$i + $j] ^= $term;
+            }
+        }
+
+        // Return just the remainder part
+        return array_slice($remainder, count($dividend) - $divisorLength + 1);
+    }
+
+    protected function dividePolynomialsV9(array $dividend, array $divisor): array
     {
         $quotient = array_merge($dividend, array_fill(0, count($divisor), 0));
 
@@ -260,8 +286,170 @@ trait GaloisFieldTrait
             }
         }
 
+        return array_slice($quotient, -count($divisor));
+    }
+
+    protected function dividePolynomialsV8(array $dividend, array $divisor): array
+    {
+        $remainder = $dividend;
+        $divisorLength = count($divisor);
+
+        for ($i = 0; $i <= count($dividend) - $divisorLength; $i++) {
+            $coef = $remainder[$i];
+
+            if ($coef === 0) continue;
+
+            for ($j = 1; $j < $divisorLength; $j++) {
+                $remainder[$i + $j] ^= $this->galoisFieldMultiply($divisor[$j], $coef);
+            }
+        }
+
+        return array_slice($remainder, -($divisorLength - 1));
+    }
+
+    protected function dividePolynomialsV7(array $dividend, array $divisor, bool $remainderOnly = true): array
+    {
+        $remainder = $dividend;
+
+        $divisorLength = count($divisor);
+
+        for ($i = 0; $i <= count($dividend) - $divisorLength; $i++) {
+            $coef = $remainder[$i];
+
+            if ($coef === 0) continue;
+
+            for ($j = 1; $j < $divisorLength; $j++) {
+                $remainder[$i + $j] ^= $this->galoisFieldMultiply($divisor[$j], $coef);
+            }
+        }
+
+        return $remainderOnly
+            ? array_slice($remainder, -($divisorLength - 1))
+            : [$remainder, array_slice($remainder, -($divisorLength - 1))];
+    }
+
+    protected function dividePolynomialsV6(array $dividend, array $divisor, bool $remainderOnly = true): array
+    {
+        $remainder = $dividend;
+
+        for ($i = 0; $i <= count($dividend) - count($divisor); $i++) {
+            $coef = $remainder[$i];
+
+            if ($coef === 0) continue;
+
+            // Divide the current coefficient by the divisor's leading term
+            $factor = $this->galoisFieldDivide($coef, $divisor[0]);
+
+            // XOR (subtract) the scaled divisor from the remainder
+            for ($j = 0; $j < count($divisor); $j++) {
+                $remainder[$i + $j] ^= $this->galoisFieldMultiply($divisor[$j], $factor);
+            }
+        }
+
+        $remainderSize = count($divisor) - 1;
+        $remainder = array_slice($remainder, -$remainderSize);
+
+        return $remainderOnly ? $remainder : [$remainder];
+    }
+
+    protected function dividePolynomialsV5(array $dividend, array $divisor, bool $remainderOnly = true): array
+    {
+        $quotient = array_merge($dividend, array_fill(0, count($divisor), 0));
+
+        var_dump("Initial dividend: " . implode(", ", $dividend) . "\n");
+        var_dump("Divisor: " . implode(", ", $divisor) . "\n");
+
+        $divisorDegree = count($divisor) - 1; // Degree of the divisor
+        $dividendDegree = count($dividend) - 1; // Degree of the dividend
+
+        // Perform polynomial long division
+        for ($i = 0; $i <= $dividendDegree - $divisorDegree; $i++) {
+            if ($quotient[$i] == 0) continue; // Skip terms with 0
+
+            // Divide the leading term of the dividend by the leading term of the divisor
+            $factor = $this->galoisFieldDivide($quotient[$i], $divisor[0]);
+
+            // Update the quotient at this index
+            $quotient[$i] = $factor;
+
+            // Subtract (via XOR) the result of multiplying the divisor by the factor from the dividend
+            for ($j = 0; $j <= $divisorDegree; $j++) {
+                $product = $this->galoisFieldMultiply($divisor[$j], $factor);
+                $quotient[$i + $j] ^= $product; // XOR to subtract in GF(256)
+            }
+
+            // Debug output of current quotient after each step
+            var_dump("Updated quotient: " . implode(", ", $quotient) . "\n");
+        }
+
+        // Extract the remainder (the last "degree of divisor" terms)
+        $remainder = array_slice($quotient, -$divisorDegree);
+
+        var_dump("Final remainder: " . implode(", ", $remainder) . "\n");
+
+        return $remainderOnly ? $remainder : [$quotient, $remainder];
+    }
+
+    protected function dividePolynomialsV4(array $dividend, array $divisor, bool $remainderOnly = true): array
+    {
+        // Clone the dividend so we don’t mutate the original
+        $remainder = $dividend;
+
+        $quotient = [];
+
+        $divisorDegree = count($divisor) - 1;
+
+        while (count($remainder) >= count($divisor)) {
+            // Leading coefficient of the remainder
+            $leadCoeff = $remainder[0];
+
+            // Degree difference determines position in quotient
+            $degreeDiff = count($remainder) - count($divisor);
+
+            if ($leadCoeff !== 0) {
+                // Coefficient of current quotient term
+                $quotCoeff = $this->galoisFieldDivide($leadCoeff, $divisor[0]);
+
+                $quotient[$degreeDiff] = $quotCoeff;
+
+                // Subtract (in GF, XOR) the scaled divisor from the remainder
+                foreach ($divisor as $i => $coef) {
+                    $remainder[$i] ^= $this->galoisFieldMultiply($quotCoeff, $coef);
+                }
+            }
+
+            // Drop the leading term from the remainder
+            array_shift($remainder);
+        }
+
+        // Fill missing quotient terms with 0s for consistency
+        $maxQuotientIndex = max(array_keys($quotient) ?: [0]);
+        $fullQuotient = array_fill(0, $maxQuotientIndex + 1, 0);
+        foreach ($quotient as $i => $val) {
+            $fullQuotient[$i] = $val;
+        }
+
+        return $remainderOnly ? $remainder : [$fullQuotient, $remainder];
+    }
+
+    protected function dividePolynomialsV3(array $dividend, array $divisor, bool $remainderOnly = true): array
+    {
+        $quotient = array_merge($dividend, array_fill(0, count($divisor), 0));
+
+        for ($i = 0; $i < count($dividend); $i++) {
+            if (0 == $quotient[$i]) continue;
+
+            foreach ($divisor as $j => $coefficient) {
+                $product = $this->galoisFieldMultiply($quotient[$i], $coefficient);
+                // from my reading, I think XORing the product with the current coefficient is the same as division???
+                $quotient[$i + $j] ^= $product;
+            }
+        }
+
         return ($remainderOnly)
+            // return only the remainder of the division
             ? array_slice($quotient, -count($divisor))
+            // return the entire quotient along with the separate remainder
             : [$quotient, array_slice($quotient, -count($divisor))];
     }
 
@@ -319,11 +507,12 @@ trait GaloisFieldTrait
      */
     protected function getGeneratorPolynomial($degree): array
     {
-        // this gives wildly different answers compared to the thonky.com generator tool
         $lastPoly = [1];
+
         for ($d = 0; $d < $degree; $d++) {
             $lastPoly = $this->multiplyPolynomials($lastPoly, [1, self::EXP_TABLE[$d % 255]]);
         }
+
         return $lastPoly;
     }
 

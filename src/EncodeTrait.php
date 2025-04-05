@@ -13,6 +13,8 @@ trait EncodeTrait
      */
     protected function encodeData(): void
     {
+        $this->characterCount = 0;
+
         $encodedData = match ($this->mode) {
             self::NUMERIC => $this->encodeNumeric($this->data),
             self::ALPHANUMERIC => $this->encodeAlphanumeric($this->data),
@@ -22,7 +24,7 @@ trait EncodeTrait
         };
 
         $countIndicator = str_pad(
-            string: decbin(strlen($this->data)),
+            string: decbin($this->characterCount),
             length: $this->detectCountIndicatorSize(),
             pad_string: LuxiQR::PAD_DATA,
             pad_type: STR_PAD_LEFT
@@ -31,8 +33,8 @@ trait EncodeTrait
         $encodedData = $this->mode . $countIndicator . $encodedData;
 
         // padding
-        $this->encodedData = str_pad( // payload padding
-            string: str_pad( // terminator padding
+        $this->encodedData = str_pad( // terminator padding
+            string: str_pad( // data padding
                 string: $encodedData,
                 length: intval(ceil(strlen($encodedData) / 8) * 8),
                 pad_string: LuxiQR::PAD_DATA
@@ -67,7 +69,7 @@ trait EncodeTrait
      *
      * @return int
      */
-    private function detectCountIndicatorSize(): int
+    protected function detectCountIndicatorSize(): int
     {
         // using black magic to detect the proper count indicator size
         return match ($this->version <= 9 ? 9 : ($this->version <= 26 ? 26 : 40)) {
@@ -93,6 +95,8 @@ trait EncodeTrait
         }
 
         for ($i = 0; $i < strlen(string: $data); $i += 3) {
+            $this->characterCount++;
+
             $decimal = intval(value: substr(string: $data, offset: $i, length: 3));
 
             if (99 < $decimal) {
@@ -136,6 +140,8 @@ trait EncodeTrait
             $second = substr(string: $data, offset: $i + 1, length: 1);
 
             if ($second) {
+                $this->characterCount += 2;
+
                 $decimal = strpos(haystack: $characterSet, needle: $first) * 45 + strpos(haystack: $characterSet, needle: $second);
                 $binary = str_pad(
                     string: decbin(num: $decimal),
@@ -144,6 +150,8 @@ trait EncodeTrait
                     pad_type: STR_PAD_LEFT
                 );
             } else {
+                $this->characterCount += 1;
+
                 $decimal = strpos(haystack: $characterSet, needle: $first);
                 $binary = str_pad(
                     string: decbin(num: $decimal),
@@ -178,6 +186,8 @@ trait EncodeTrait
         $bytes = unpack('H*', $data)[1];
 
         for ($i = 0; $i < strlen(string: $bytes); $i += 4) {
+            $this->characterCount++;
+
             $doubleByte = hexdec(hex_string: substr(string: $bytes, offset: $i, length: 4));
             $character = (0x9FFC >= $doubleByte) ? $doubleByte - 0x8140 : $doubleByte - 0xC140;
             $byte1 = $character >> 8 & 0x00FF;
@@ -212,6 +222,8 @@ trait EncodeTrait
         $bytes = unpack(format: 'C*', string: $data);
 
         foreach ($bytes as $byte) {
+            $this->characterCount++;
+
             $encoded .= str_pad(
                 string: decbin(num: $byte),
                 length: 8,

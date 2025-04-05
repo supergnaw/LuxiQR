@@ -129,6 +129,12 @@ trait OutputTrait
         return $output;
     }
 
+    // TODO: will render output using unicode 2800-28FF characters
+    public function outputBraille(): void
+    {
+
+    }
+
     // TODO: will render a raster image
     public function outputRaster(): void
     {

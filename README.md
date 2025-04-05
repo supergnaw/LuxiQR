@@ -1,4 +1,4 @@
-# LuxiQR: The Luxury QR Code Generator
+#  LuxiQR: The Luxury QR Code Generator
 
 Reinventing the wheel, one Quick Response Code at a time.
 
@@ -9,26 +9,14 @@ so choose which one suits your needs best.
 
 - Understand how different data is encoded into a QR code
 - Learn how to do polynomial math for Reed-Solomon error correction
+  - _(This was a nightmare)_
 - Implement settings customization for more control over the final generation
 - Have various different output options for maximum integration compatibility
 
-## ⛔ Current Version Inoperable
-
-Although the code technically "generates" something, that something is not a functional QR code. I believe the issue to be with the GF(256) math in regards to the error correction generation.
-
-To view tests along the generation process, use the following:
-
 ```php
-<?php
+$qrCode = new LuxiQR(data: "https://github.com/supergnaw/LuxiQR", eccLevel: "H");
 
-declare(strict_types=1);
-
-use supergnaw\LuxiQR\LuxiQR;
-use supergnaw\LuxiQR\LuxiQRTest;
-
-require_once './vendor/autoload.php';
-
-$test = new LuxiQRTest();
+echo $qrCode->outputTable();
 ```
 
 ## Various References

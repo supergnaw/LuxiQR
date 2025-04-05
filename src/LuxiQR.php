@@ -7,6 +7,7 @@ namespace supergnaw\LuxiQR;
 class LuxiQR
 {
     // traits
+    use DebugTrait;
     use EncodeTrait;
     use GaloisFieldTrait;
     use InputValidation;
@@ -607,6 +608,7 @@ class LuxiQR
     protected string $mode = "";
     protected string $eccLevel = self::EC_MEDIUM;
     protected int $version = 0;
+    protected int $characterCount = 0;
     protected int $matrixSize = 0;
     protected array $moduleMatrix = [];
     protected string $data = "";
@@ -614,7 +616,7 @@ class LuxiQR
     protected array $dataBlocks = [];
     protected array $eccBlocks = [];
     protected array $interleavedBlocks = [];
-    protected string $payload = "";
+    protected string $bitstream = "";
 
     // qr code masking
     protected int $maskVersion = 0;
@@ -662,7 +664,7 @@ class LuxiQR
         $this->splitDataBlocks();
         $this->generateEccBlocks();
         $this->interleaveBlocks();
-        $this->payload = $this->bytesToBits($this->interleavedBlocks) . self::REMAINDER_BITS[$this->version];
+        $this->bitstream = $this->bytesToBits($this->interleavedBlocks) . self::REMAINDER_BITS[$this->version];
 
         // generate module matrix
         $this->generateMatrix();

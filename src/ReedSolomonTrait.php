@@ -20,17 +20,18 @@ trait ReedSolomonTrait
 
         $groups = self::BYTE_COUNT_TABLE[$this->version][$this->eccLevel]["groups"];
 
-        $chunks = [];
+        $dataBlocks = [];
+
         $offset = 0;
 
         foreach ($groups as $group) {
             for ($block = 0; $block < $group["blocks"]; $block++) {
-                $chunks[] = array_slice($encodedData, offset: $offset, length: $group["size"]);
+                $dataBlocks[] = array_slice($encodedData, offset: $offset, length: $group["size"]);
                 $offset += $group["size"];
             }
         }
 
-        $this->dataBlocks = $chunks;
+        $this->dataBlocks = $dataBlocks;
     }
 
     /**
@@ -43,11 +44,33 @@ trait ReedSolomonTrait
     {
         $eccBlocks = [];
 
-        $eccBytes = self::BYTE_COUNT_TABLE[$this->version][$this->eccLevel]["ecc"];
-        $generator = $this->getGeneratorPolynomial(degree: $eccBytes - 1);
+        $degree = self::BYTE_COUNT_TABLE[$this->version][$this->eccLevel]["ecc"];
+
+        $generator = $this->getGeneratorPolynomial(degree: $degree);
 
         foreach ($this->dataBlocks as $block) {
-            $eccBlocks[] = $this->dividePolynomials($block, $generator);
+            // Create a copy of the block that we can modify
+            $augmentedBlock = array_merge($block, array_fill(0, $degree, 0));
+
+            $remainder = $this->dividePolynomials($augmentedBlock, $generator);
+
+            $eccBlocks[] = $remainder;
+        }
+
+        $this->eccBlocks = $eccBlocks;
+    }
+    protected function generateEccBlocksV1(): void
+    {
+        $eccBlocks = [];
+
+        $degree = self::BYTE_COUNT_TABLE[$this->version][$this->eccLevel]["ecc"] - 1;
+
+        $generator = $this->getGeneratorPolynomial(degree: $degree);
+
+        foreach ($this->dataBlocks as $block) {
+            $remainder = $this->dividePolynomials($block, $generator);
+
+            $eccBlocks[] = $remainder;
         }
 
         $this->eccBlocks = $eccBlocks;

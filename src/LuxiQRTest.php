@@ -37,6 +37,7 @@ class LuxiQRTest extends LuxiQR
         $this->testMultiply();
         $this->testDivide();
         $this->testMultiplyPolynomials();
+        $this->testDividePolynomials();
         $this->testGeneratorPolynomial();
 
         // error correction trait methods
@@ -128,40 +129,52 @@ class LuxiQRTest extends LuxiQR
         $tests = [
             [
                 "data" => "8675309",
-                "expected" => "I don't know",
-                "ecc" => self::EC_QUARTILE,
+                // this is just a guess
+                "expected" => "00010000000011110110001110000100101001001110110000010001111011000001000111101100000100011110110000010001",
+                "ecc" => "Q",
                 "mode" => "numeric"
             ],
             [
                 "data" => "HELLO WORLD",
                 "expected" => "00100000010110110000101101111000110100010111001011011100010011010100001101000000111011000001000111101100",
-                "ecc" => self::EC_QUARTILE,
+                "ecc" => "Q",
                 "mode" => "alphanumeric"
             ],
             [
                 "data" => "HELLO WORLD",
                 "expected" => "00100000010110110000101101111000110100010111001011011100010011010100001101000000111011000001000111101100000100011110110000010001",
-                "ecc" => self::EC_MEDIUM,
+                "ecc" => "M",
                 "mode" => "alphanumeric"
             ],
             [
                 "data" => "茗荷",
-                "expected" => "I don't know",
-                "ecc" => self::EC_QUARTILE,
+                // this is just a guess
+                "expected" => "10000000001011010101010100011010010111001110110000010001111011000001000111101100000100011110110000010001",
+                "ecc" => "Q",
                 "mode" => "kanji"
             ],
             [
                 "data" => "Hello, world!",
-                "expected" => "I don't know",
-                "ecc" => self::EC_QUARTILE,
+                // this is just a guess
+                "expected" => "01000000110101001000011001010110110001101100011011110010110000100000011101110110111101110010011011000110010000100001000011101100000100011110110000010001111011000001000111101100",
+                "ecc" => "Q",
                 "mode" => "byte"
+            ],
+            [
+                "data" => "There\'s a frood who really knows where his towel is.",
+                "ecc" => "Q",
+                "mode" => "byte",
+                "expected" => "0100001101010101010001101000011001010111001001100101010111000010011101110011001000000110000100100000011001100111001001101111011011110110010000100000011101110110100001101111001000000111001001100101011000010110110001101100011110010010000001101011011011100110111101110111011100110010000001110111011010000110010101110010011001010010000001101000011010010111001100100000011101000110111101110111011001010110110000100000011010010111001100101110000011101100000100011110110000010001111011000001000111101100"
             ]
         ];
 
-        $table = "<table><tr><th>Status</th><th>Mode</th><th>ECC</th><th>Data</th><th>Expected</th><th>Result</th></tr>";
+        $table = "<table><tr><th>Status</th><th>Mode</th><th>ECC</th><th>Version</th><th>Count<br>Indicator<br>Size</th><th>Count Indicator</th><th>Data</th><th>Expected</th><th>Result</th></tr>";
         $messageTemplate = "
                         <tr>
                             <td class='%s'>%s</td>
+                            <td>%s</td>
+                            <td>%s</td>
+                            <td>%s</td>
                             <td>%s</td>
                             <td>%s</td>
                             <td>%s</td>
@@ -190,6 +203,14 @@ class LuxiQRTest extends LuxiQR
                 $status,
                 $test["mode"],
                 $test["ecc"],
+                $this->version,
+                $this->detectCountIndicatorSize(),
+                str_pad(
+                    string: decbin(strlen($this->data)),
+                    length: $this->detectCountIndicatorSize(),
+                    pad_string: LuxiQR::PAD_DATA,
+                    pad_type: STR_PAD_LEFT
+                ) . " / " . strlen($this->data),
                 $test["data"],
                 $this->debugBits($test["expected"]),
                 (preg_match("/^[\s01]+$/", $this->encodedData))
@@ -358,10 +379,8 @@ class LuxiQRTest extends LuxiQR
             ["a" => 3, "b" => 90, "expected" => 238],
             ["a" => 0, "b" => 1, "expected" => 0],
             ["a" => 255, "b" => 255, "expected" => 226],
-            ["a" => 87, "b" => 131, "expected" => 226],
-            ["a" => 240, "b" => 170, "expected" => 226],
-//            ["a" => 15, "b" => 5, "expected" => 75],
-//            ["a" => 120, "b" => 45, "expected" => 209],
+            ["a" => 87, "b" => 131, "expected" => 49],
+            ["a" => 240, "b" => 170, "expected" => 244]
         ];
 
         $table = "<table><tr><th>Status</th><th>A</th><th>B</th><th>Log(A)</th><th>Log(B)</th><th>Sum</th><th>Expected</th><th>Result</th></tr>";
@@ -457,7 +476,7 @@ class LuxiQRTest extends LuxiQR
             [
                 "a" => [2, 3],
                 "b" => [4, 5],
-                "expected" => [16, 112, 8]
+                "expected" => [8, 6, 15] // validated expected output
             ],
             [
                 "a" => [0, 0, 0, 0, 0, 0, 0, 46, 67, 251, 0],
@@ -474,6 +493,32 @@ class LuxiQRTest extends LuxiQR
                 "a" => [3, 3],
                 "b" => [3, 3],
                 "expected" => ["who", "fucking", "knows"]
+            ],
+            [
+                "a" => [1, 2],
+                "b" => [1, 3],
+                "expected" => [1, 1, 6]
+            ],
+            // test data generated from copilot
+            [
+                "a" => [1, 2, 3],
+                "b" => [1, 1],
+                "expected" => [1, 3, 5, 3]
+            ],
+            [
+                "a" => [8],
+                "b" => [9],
+                "expected" => [48]
+            ],
+            [
+                "a" => [1, 0xff, 0xaa],
+                "b" => [1, 2, 4],
+                "expected" => [1, 0xfd, 0xac, 0x02, 0x08]
+            ],
+            [
+                "a" => [0],
+                "b" => [5, 0x10, 0x20],
+                "expected" => [0, 0, 0]
             ]
         ];
 
@@ -501,18 +546,69 @@ class LuxiQRTest extends LuxiQR
         echo $table;
     }
 
+    public function testDividePolynomials(): void
+    {
+        $overallPassed = true;
+
+        $tests = [
+            [
+                "n" => [1, 2, 3, 4],
+                "d" => [1, 1],
+                "expected" => [4]
+            ],
+            [
+                "n" => [32, 91, 11, 120, 0, 0],
+                "d" => [1, 25, 196],
+                "expected" => [246, 3]
+            ],
+            [
+                "n" => [5, 0, 0, 0],
+                "d" => [1, 87, 229, 146],
+                "expected" => [22, 86, 224]
+            ],
+            [
+                "n" => [3, 5, 7, 1, 0, 0],
+                "d" => [1, 15, 87],
+                "expected" => [4, 72]
+            ],
+            [
+                "n" => [10, 11, 12, 13, 14, 15],
+                "d" => [1, 2, 3],
+                "expected" => [146, 147]
+            ]
+        ];
+
+        $table = "<table><tr><th>Status</th><th>Dividend</th><th>Divisor</th><th>Expected</th><th>Result</th></tr>";
+        $messageTemplate = "<tr><td class='%s'>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>";
+
+        foreach ($tests as $test) {
+            $expected = $test["expected"];
+            $result = $this->dividePolynomials($test["n"], $test["d"]);
+            $status = ($expected === $result) ? "passed" : "failed";
+            if ("failed" == $status) $overallPassed = false;
+            $table .= sprintf($messageTemplate, $status, $status, $this->arr2Str($test["n"]), $this->arr2Str($test["d"]), $this->arr2Str($expected), $this->arr2Str($result));
+        }
+        $table .= "</table>\n";
+
+        echo sprintf(
+            self::TEST_MESSAGE_TEMPLATE,
+            ($overallPassed) ? "passed" : "failed",
+            "dividePolynomials",
+            ($overallPassed) ? "passed" : "failed"
+        );
+
+        echo $table;
+    }
+
     public function testGeneratorPolynomial(): void
     {
         $overallPassed = true;
 
         $tests = [
-            ["d" => 7, "expected" => [0, 87, 229, 146, 149, 238, 102, 21]],
-            ["d" => 10, "expected" => [0, 251, 67, 46, 61, 118, 70, 64, 94, 32, 45]],
-            ["d" => 16, "expected" => [0, 120, 104, 107, 109, 102, 161, 76, 3, 91, 191, 147, 169, 182, 194, 225, 120]],
-            ["d" => 32, "expected" => [
-                0, 10, 6, 106, 190, 249, 167, 4, 67, 209, 138, 138, 32, 242, 123, 89, 27,
-                120, 185, 80, 156, 38, 69, 171, 60, 28, 222, 80, 52, 254, 185, 220, 241
-            ]],
+            ["d" => 7, "expected" => [1, 127, 122, 154, 164, 11, 68, 117]],
+            ["d" => 10, "expected" => [1, 216, 194, 159, 111, 199, 94, 95, 113, 157, 193]],
+            ["d" => 16, "expected" => [1, 59, 13, 104, 189, 68, 209, 30, 8, 163, 65, 41, 229, 98, 50, 36, 59]],
+            ["d" => 32, "expected" => [1, 116, 64, 52, 174, 54, 126, 16, 194, 162, 33, 33, 157, 176, 197, 225, 12, 59, 55, 253, 228, 148, 47, 179, 185, 24, 138, 253, 20, 142, 55, 172, 88]]
         ];
 
         $table = "<table><tr><th>Status</th><th>Degree</th><th>Expected</th><th>Result</th></tr>";
@@ -619,26 +715,31 @@ class LuxiQRTest extends LuxiQR
 
         $tests = [
             [
+                // version 1
                 "data" => "8675309",
                 "ecc" => self::EC_LOW,
                 "expected" => [7]
             ],
             [
+                // version 1
                 "data" => "HELLO WORLD",
                 "ecc" => self::EC_MEDIUM,
                 "expected" => [10]
             ],
             [
+                // version 2
                 "data" => "Hello, world!",
                 "ecc" => self::EC_QUARTILE,
                 "expected" => [22]
             ],
             [
-                "data" => "There's a frood who really knows where his towel is.",
+                // version 5
+                "data" => "There\'s a frood who really knows where his towel is.",
                 "ecc" => self::EC_QUARTILE,
                 "expected" => [18, 18, 18, 18]
             ],
             [
+                // version 17
                 "data" => "This Pangram contains four a’s, one b, two c’s, one d, thirty e’s, six f’s, five g’s, seven h’s, eleven i’s, one j, one k, two l’s, two m’s, eighteen n’s, fifteen o’s, two p’s, one q, five r’s, twenty-seven s’s, eighteen t’s, two u’s, seven v’s, eight w’s, two x’s, three y’s, & one z.",
                 "ecc" => self::EC_QUARTILE,
                 "expected" => [28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28]
@@ -653,6 +754,7 @@ class LuxiQRTest extends LuxiQR
                 data: $test["data"],
                 eccLevel: $test["ecc"]
             );
+
             $result = [];
 
             foreach ($this->eccBlocks as $e) $result[] = count($e);
@@ -695,12 +797,12 @@ class LuxiQRTest extends LuxiQR
             [
                 "data" => 8675309,
                 "ecc" => "L",
-                "output" => "raw"
+                "output" => "table"
             ],
             [
                 "data" => "HELLO WORLD",
                 "ecc" => "M",
-                "output" => "array"
+                "output" => "table"
             ],
             [
                 "data" => "Hello, world!",
@@ -710,12 +812,12 @@ class LuxiQRTest extends LuxiQR
             [
                 "data" => "There's a frood who really knows where his towel is.",
                 "ecc" => "H",
-                "output" => "raw"
+                "output" => "table"
             ],
             [
                 "data" => "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG",
                 "ecc" => "Low",
-                "output" => "array"
+                "output" => "table"
             ],
             [
                 "data" => "This Pangram contains four a’s, one b, two c’s, one d, thirty e’s, six f’s, five g’s, seven h’s, eleven i’s, one j, one k, two l’s, two m’s, eighteen n’s, fifteen o’s, two p’s, one q, five r’s, twenty-seven s’s, eighteen t’s, two u’s, seven v’s, eight w’s, two x’s, three y’s, & one z.",
@@ -727,7 +829,7 @@ class LuxiQRTest extends LuxiQR
                     "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis consequat, ligula eget malesuada egestas, augue tortor efficitur tortor, ut rhoncus erat nisi vel metus. Donec tincidunt pharetra tellus, sed tincidunt nibh tempus aliquam. Proin lorem nulla, consequat porttitor massa quis, cursus molestie ante. Fusce ultrices lacinia sapien nec aliquam. Etiam rutrum laoreet tortor placerat viverra. Nam sodales ornare mattis. Pellentesque varius elit a tellus iaculis, a faucibus ante venenatis. Integer non dapibus nisi, id pharetra turpis. Ut et augue auctor elit feugiat laoreet sit amet et dolor. Proin sed turpis vitae quam vehicula fringilla bibendum sit amet ligula. Nullam condimentum dapibus dui ac sodales. In tincidunt nunc lacus, eu varius lectus semper nec. Nam rutrum sed neque ut vulputate." .
                     "Aliquam at lacus lacus. Nam bibendum lorem vitae varius dignissim. Duis posuere placerat mi, in dictum lacus. Aliquam erat volutpat. Suspendisse congue in ante quis venenatis. Curabitur eget diam sapien. Mauris ac ante facilisis, gravida tellus at, venenatis libero.",
                 "ecc" => "H",
-                "output" => "invalid"
+                "output" => "table"
             ]
         ];
 
@@ -750,3 +852,137 @@ class LuxiQRTest extends LuxiQR
         }
     }
 }
+
+
+/*
+
+01000011
+10100101
+01000110
+10000110
+01010111
+00100110
+01010101
+11000010
+01110111
+00110010
+00000110
+00010010
+00000110
+01100110
+11110110
+11110110
+01000010
+00000111
+01110110
+10000110
+11110010
+00000111
+00100110
+01010110
+00010110
+11000110
+11000111
+10010010
+00000110
+10110110
+11100110
+11110111
+01110111
+00110010
+00000111
+01110110
+10000110
+01010111
+00100110
+01010010
+00000111
+01110110
+10000110
+01010111
+00100110
+01010010
+00000110
+10000110
+10010111
+00110010
+00000111
+01000110
+11110111
+01110110
+01010110
+11000010
+00000110
+10010111
+00110010
+11100000
+11101100
+00010001
+
+
+01000011
+01010101
+01000110
+10000110
+01010111
+00100110
+01010101
+11000010
+01110111
+00110010
+00000110
+00010010
+00000110
+01100111
+00100110
+11110110
+11110110
+01000010
+00000111
+01110110
+10000110
+11110010
+00000111
+00100110
+01010110
+00010110
+11000110
+11000111
+10010010
+00000110
+10110110
+11100110
+11110111
+01110111
+00110010
+00000111
+01110110
+10000110
+01010111
+00100110
+01010010
+00000110
+10000110
+10010111
+00110010
+00000111
+01000110
+11110111
+01110110
+01010110
+11000010
+00000110
+10010111
+00110010
+11100000
+11101100
+00010001
+11101100
+00010001
+11101100
+00010001
+11101100
+
+0100001101010101010001101000011001010111001001100101010111000010011101110011001000000110000100100000011001100111001001101111011011110110010000100000011101110110100001101111001000000111001001100101011000010110110001101100011110010010000001101011011011100110111101110111011100110010000001110111011010000110010101110010011001010010000001101000011010010111001100100000011101000110111101110111011001010110110000100000011010010111001100101110000011101100000100011110110000010001111011000001000111101100
+
+ */
