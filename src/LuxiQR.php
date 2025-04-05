@@ -7,14 +7,13 @@ namespace supergnaw\LuxiQR;
 class LuxiQR
 {
     // traits
-    use DebugTrait;
     use EncodeTrait;
     use GaloisFieldTrait;
     use InputValidation;
     use MaskTrait;
     use OutputTrait;
     use ReedSolomonTrait;
-    use StructureTrait;
+    use ModuleMatrixTrait;
     use VersionFormatTrait;
 
     // modes
@@ -664,56 +663,8 @@ class LuxiQR
         $this->splitDataBlocks();
         $this->generateEccBlocks();
         $this->interleaveBlocks();
-        $this->bitstream = $this->bytesToBits($this->interleavedBlocks) . self::REMAINDER_BITS[$this->version];
 
         // generate module matrix
         $this->generateMatrix();
-    }
-
-    ///////////////
-    /// UTILITY ///
-    ///////////////
-
-    /**
-     * Converts a bit string into an array of integer bytes
-     *
-     * @param string $bits
-     * @return array
-     */
-    protected function bitsToBytes(string $bits): array
-    {
-        if (0 !== strlen($bits) % 8) {
-            throw new LuxiQRException("Number of bits is not a multiple of 8: " . strlen($bits));
-        }
-
-        $bytes = [];
-
-        for ($i = 0; $i < strlen($bits); $i += 8) {
-            $bytes[] = bindec(substr($bits, $i, 8));
-        }
-
-        return $bytes;
-    }
-
-    /**
-     * Converts an array of integer bytes to a bit string
-     *
-     * @param array $bytes
-     * @return string
-     */
-    protected function bytesToBits(array $bytes): string
-    {
-        $bits = "";
-
-        foreach ($bytes as $byte) {
-            $bits .= str_pad(
-                string: decbin($byte),
-                length: 8,
-                pad_string: self::PAD_DATA,
-                pad_type: STR_PAD_LEFT
-            );
-        }
-
-        return $bits;
     }
 }

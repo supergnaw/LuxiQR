@@ -12,7 +12,7 @@ trait InputValidation
      * @param int|string|null $data
      * @return string
      */
-    public function validateData(int|string $data = null): string
+    protected function validateData(int|string $data = null): string
     {
         if (strlen(strval($data)) > 0) return strval($data);
 
@@ -25,7 +25,7 @@ trait InputValidation
      * @param string|null $eccLevel
      * @return string
      */
-    public function validateECCLevel(string $eccLevel = null): string
+    protected function validateECCLevel(string $eccLevel = null): string
     {
         if (strlen(trim(strval($eccLevel))) == 0) return self::EC_MEDIUM;
 
@@ -44,7 +44,7 @@ trait InputValidation
      * @param string|null $mode
      * @return string
      */
-    public function validateMode(string $mode = null): string
+    protected function validateMode(string $mode = null): string
     {
         return match (strtolower(strval($mode))) {
             "" => $this->detectEncodingMode(),
@@ -62,7 +62,7 @@ trait InputValidation
      * @param int|null $version
      * @return int
      */
-    public function validateVersion(int $version = null): int
+    protected function validateVersion(int $version = null): int
     {
         if (is_null($version)) return $this->detectVersion();
 

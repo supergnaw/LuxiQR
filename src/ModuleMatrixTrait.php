@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace supergnaw\LuxiQR;
 
-trait StructureTrait
+trait ModuleMatrixTrait
 {
     protected function generateMatrix(): void
     {

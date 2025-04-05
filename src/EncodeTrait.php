@@ -57,7 +57,7 @@ trait EncodeTrait
         if (preg_match(pattern: self::REGEX_ALPHANUMERIC, subject: $this->data))
             return self::ALPHANUMERIC;
 
-        if ($this->isKanjiOnly($this->data)) {
+        if ($this->fitsCharacterSet($this->data, "SHIFT-JIS")) {
             return self::KANJI;
         }
 
@@ -69,7 +69,7 @@ trait EncodeTrait
      *
      * @return int
      */
-    protected function detectCountIndicatorSize(): int
+    private function detectCountIndicatorSize(): int
     {
         // using black magic to detect the proper count indicator size
         return match ($this->version <= 9 ? 9 : ($this->version <= 26 ? 26 : 40)) {
@@ -177,7 +177,7 @@ trait EncodeTrait
     {
         $encoded = "";
 
-        if (!$this->isKanjiOnly($data)) {
+        if (!$this->fitsCharacterSet($data, characterSet:  "SHIFT-JIS")) {
             throw new LuxiQRException("Cannot use Kanji encoding on non-Shift JIS data: $data");
         }
 
@@ -215,7 +215,7 @@ trait EncodeTrait
         $encoded = "";
 
         // ISO-8859-1 is the primary standard, but some readers allow UTF-8, so try ISO first with a UTF-8 fallback
-        $encoding = ($this->isISO88591Only($data)) ? "ISO-8859-1" : "UTF-8";
+        $encoding = ($this->fitsCharacterSet($data, "ISO-8859-1")) ? "ISO-8859-1" : "UTF-8";
 
         $data = mb_convert_encoding(string: $data, to_encoding: $encoding, from_encoding: mb_detect_encoding($data));
 
@@ -236,45 +236,18 @@ trait EncodeTrait
     }
 
     /**
-     * Checks if a string contains exclusively SHIFT-JIS characters
+     * Checks to see if a data string contains only characters within a given character encoding
      *
      * @param string $data
+     * @param string $characterSet
      * @return bool
      */
-    private function isKanjiOnly(string $data): bool
+    private function fitsCharacterSet(string $data, string $characterSet): bool
     {
-        // Adapted from BaconQrCode
-        // Reference: https://github.com/Bacon/BaconQrCode
-        $bytes = @iconv('utf-8', 'SHIFT-JIS', $data);
+        $originalEncoding = mb_detect_encoding($data);
+        $converted = @iconv($originalEncoding, "$characterSet//IGNORE", $data);
+        $reconverted = @iconv($characterSet, $originalEncoding, $converted);
 
-        if (false === $bytes) return false;
-
-        if (0 !== strlen($bytes) % 2) return false;
-
-        for ($i = 0; $i < strlen($bytes); $i += 2) {
-            $byte = ord($bytes[$i]) & 0xff;
-
-            if (($byte < 0x81 || $byte > 0x9f) && $byte < 0xe0 || $byte > 0xeb) return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * Checks if a string contains exclusively ISO-8859-1 characters
-     *
-     * @param string $data
-     * @return bool
-     */
-    private function isISO88591Only(string $data): bool
-    {
-        // TODO: I think I should change the data encoding and convert to bytes like isKanjiOnly()
-        for ($i = 0; $i < strlen($data); $i++) {
-            $byte = ord($data[$i]);
-
-            if ($byte < 0x00 || $byte > 0xFF) return false;
-        }
-
-        return true;
+        return $data === $reconverted;
     }
 }

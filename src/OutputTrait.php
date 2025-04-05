@@ -135,14 +135,20 @@ trait OutputTrait
 
     }
 
-    // TODO: will render a raster image
-    public function outputRaster(): void
+    // TODO: will render a PNG image
+    public function outputPNG(): void
     {
 
     }
 
-    // TODO: will render a vector image
-    public function outputVector(): void
+    // TODO: will render a JPG image
+    public function outputJPG(): void
+    {
+
+    }
+
+    // TODO: will render an SVG image
+    public function outputSVG(): void
     {
 
     }

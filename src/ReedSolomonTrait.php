@@ -59,23 +59,12 @@ trait ReedSolomonTrait
 
         $this->eccBlocks = $eccBlocks;
     }
-    protected function generateEccBlocksV1(): void
-    {
-        $eccBlocks = [];
 
-        $degree = self::BYTE_COUNT_TABLE[$this->version][$this->eccLevel]["ecc"] - 1;
-
-        $generator = $this->getGeneratorPolynomial(degree: $degree);
-
-        foreach ($this->dataBlocks as $block) {
-            $remainder = $this->dividePolynomials($block, $generator);
-
-            $eccBlocks[] = $remainder;
-        }
-
-        $this->eccBlocks = $eccBlocks;
-    }
-
+    /**
+     * Interleaves the data codeword and error correction codeword blocks
+     *
+     * @return void
+     */
     protected function interleaveBlocks(): void
     {
         $interleaved = [];
@@ -102,5 +91,49 @@ trait ReedSolomonTrait
         }
 
         $this->interleavedBlocks = $interleaved;
+        $this->bitstream = $this->bytesToBits($this->interleavedBlocks) . self::REMAINDER_BITS[$this->version];
+    }
+
+    /**
+     * Converts a bit string into an array of integer bytes
+     *
+     * @param string $bits
+     * @return array
+     */
+    protected function bitsToBytes(string $bits): array
+    {
+        if (0 !== strlen($bits) % 8) {
+            throw new LuxiQRException("Number of bits is not a multiple of 8: " . strlen($bits));
+        }
+
+        $bytes = [];
+
+        for ($i = 0; $i < strlen($bits); $i += 8) {
+            $bytes[] = bindec(substr($bits, $i, 8));
+        }
+
+        return $bytes;
+    }
+
+    /**
+     * Converts an array of integer bytes to a bit string
+     *
+     * @param array $bytes
+     * @return string
+     */
+    protected function bytesToBits(array $bytes): string
+    {
+        $bits = "";
+
+        foreach ($bytes as $byte) {
+            $bits .= str_pad(
+                string: decbin($byte),
+                length: 8,
+                pad_string: self::PAD_DATA,
+                pad_type: STR_PAD_LEFT
+            );
+        }
+
+        return $bits;
     }
 }
