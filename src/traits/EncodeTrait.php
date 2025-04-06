@@ -2,7 +2,13 @@
 
 declare(strict_types=1);
 
-namespace supergnaw\LuxiQR;
+namespace supergnaw\LuxiQR\traits;
+
+use supergnaw\LuxiQR\constants\CapacityTables;
+use supergnaw\LuxiQR\constants\Modes;
+use supergnaw\LuxiQR\constants\Padding;
+use supergnaw\LuxiQR\constants\Regex;
+use supergnaw\LuxiQR\exception\LuxiQRException;
 
 trait EncodeTrait
 {
@@ -16,17 +22,17 @@ trait EncodeTrait
         $this->characterCount = 0;
 
         $encodedData = match ($this->mode) {
-            self::NUMERIC => $this->encodeNumeric($this->data),
-            self::ALPHANUMERIC => $this->encodeAlphanumeric($this->data),
-            self::KANJI => $this->encodeKanji($this->data),
-            self::BYTE => $this->encodeByte($this->data),
+            Modes::NUMERIC => $this->encodeNumeric($this->data),
+            Modes::ALPHANUMERIC => $this->encodeAlphanumeric($this->data),
+            Modes::KANJI => $this->encodeKanji($this->data),
+            Modes::BYTE => $this->encodeByte($this->data),
             default => throw new LuxiQRException("Encoding mode $this->mode not supported"),
         };
 
         $countIndicator = str_pad(
             string: decbin($this->characterCount),
             length: $this->detectCountIndicatorSize(),
-            pad_string: LuxiQR::PAD_DATA,
+            pad_string: Padding::DATA,
             pad_type: STR_PAD_LEFT
         );
 
@@ -37,10 +43,10 @@ trait EncodeTrait
             string: str_pad( // data padding
                 string: $encodedData,
                 length: intval(ceil(strlen($encodedData) / 8) * 8),
-                pad_string: LuxiQR::PAD_DATA
+                pad_string: Padding::DATA
             ),
-            length: LuxiQR::BYTE_COUNT_TABLE[$this->version][$this->eccLevel]["total"] * 8,
-            pad_string: LuxiQR::PAD_ENCODED
+            length: CapacityTables::BYTE[$this->version][$this->eccLevel]["total"] * 8,
+            pad_string: Padding::ENCODED
         );
     }
 
@@ -51,17 +57,17 @@ trait EncodeTrait
      */
     protected function detectEncodingMode(): string
     {
-        if (preg_match(pattern: self::REGEX_NUMERIC, subject: $this->data))
-            return self::NUMERIC;
+        if (preg_match(pattern: Regex::NUMERIC, subject: $this->data))
+            return Modes::NUMERIC;
 
-        if (preg_match(pattern: self::REGEX_ALPHANUMERIC, subject: $this->data))
-            return self::ALPHANUMERIC;
+        if (preg_match(pattern: Regex::ALPHANUMERIC, subject: $this->data))
+            return Modes::ALPHANUMERIC;
 
-        if ($this->fitsCharacterSet($this->data, "SHIFT-JIS")) {
-            return self::KANJI;
+        if ($this->isKanjiOnly($this->data)) {
+            return Modes::KANJI;
         }
 
-        return self::BYTE;
+        return Modes::BYTE;
     }
 
     /**
@@ -69,13 +75,13 @@ trait EncodeTrait
      *
      * @return int
      */
-    private function detectCountIndicatorSize(): int
+    protected function detectCountIndicatorSize(): int
     {
         // using black magic to detect the proper count indicator size
         return match ($this->version <= 9 ? 9 : ($this->version <= 26 ? 26 : 40)) {
-            9 => [self::NUMERIC => 10, self::ALPHANUMERIC => 9, self::BYTE => 8, self::KANJI => 8][$this->mode],
-            26 => [self::NUMERIC => 12, self::ALPHANUMERIC => 11, self::BYTE => 16, self::KANJI => 10][$this->mode],
-            40 => [self::NUMERIC => 14, self::ALPHANUMERIC => 13, self::BYTE => 16, self::KANJI => 12][$this->mode],
+            9 => [Modes::NUMERIC => 10, Modes::ALPHANUMERIC => 9, Modes::BYTE => 8, Modes::KANJI => 8][$this->mode],
+            26 => [Modes::NUMERIC => 12, Modes::ALPHANUMERIC => 11, Modes::BYTE => 16, Modes::KANJI => 10][$this->mode],
+            40 => [Modes::NUMERIC => 14, Modes::ALPHANUMERIC => 13, Modes::BYTE => 16, Modes::KANJI => 12][$this->mode],
         };
     }
 
@@ -90,7 +96,7 @@ trait EncodeTrait
     {
         $encoded = "";
 
-        if (!preg_match(pattern: self::REGEX_NUMERIC, subject: $data)) {
+        if (!preg_match(pattern: Regex::NUMERIC, subject: $data)) {
             throw new LuxiQRException("Cannot use numeric encoding on non-numeric data: $data");
         }
 
@@ -110,7 +116,7 @@ trait EncodeTrait
             $binary = str_pad(
                 string: decbin(num: $decimal),
                 length: $paddingLength,
-                pad_string: LuxiQR::PAD_DATA,
+                pad_string: Padding::DATA,
                 pad_type: STR_PAD_LEFT
             );
 
@@ -131,7 +137,7 @@ trait EncodeTrait
         $characterSet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
         $encoded = "";
 
-        if (!preg_match(pattern: self::REGEX_ALPHANUMERIC, subject: $data)) {
+        if (!preg_match(pattern: Regex::ALPHANUMERIC, subject: $data)) {
             throw new LuxiQRException("Cannot use alphanumeric encoding on non-alphanumeric data: $data");
         }
 
@@ -146,7 +152,7 @@ trait EncodeTrait
                 $binary = str_pad(
                     string: decbin(num: $decimal),
                     length: 11,
-                    pad_string: LuxiQR::PAD_DATA,
+                    pad_string: Padding::DATA,
                     pad_type: STR_PAD_LEFT
                 );
             } else {
@@ -156,7 +162,7 @@ trait EncodeTrait
                 $binary = str_pad(
                     string: decbin(num: $decimal),
                     length: 6,
-                    pad_string: LuxiQR::PAD_DATA,
+                    pad_string: Padding::DATA,
                     pad_type: STR_PAD_LEFT
                 );
             }
@@ -177,7 +183,7 @@ trait EncodeTrait
     {
         $encoded = "";
 
-        if (!$this->fitsCharacterSet($data, characterSet:  "SHIFT-JIS")) {
+        if (!$this->isKanjiOnly($data)) {
             throw new LuxiQRException("Cannot use Kanji encoding on non-Shift JIS data: $data");
         }
 
@@ -196,7 +202,7 @@ trait EncodeTrait
             $encoded .= str_pad(
                 string: decbin($doubleByte),
                 length: 13,
-                pad_string: LuxiQR::PAD_DATA,
+                pad_string: Padding::DATA,
                 pad_type: STR_PAD_LEFT
             );
         }
@@ -227,12 +233,33 @@ trait EncodeTrait
             $encoded .= str_pad(
                 string: decbin(num: $byte),
                 length: 8,
-                pad_string: LuxiQR::PAD_DATA,
+                pad_string: Padding::DATA,
                 pad_type: STR_PAD_LEFT
             );
         }
 
         return $encoded;
+    }
+
+    public function isKanjiOnly(string $data): bool
+    {
+        // Adapted from BaconQrCode
+        // Reference: https://github.com/Bacon/BaconQrCode
+        if ("SHIFT-JIS" != mb_detect_encoding($data)) {
+            $bytes = @iconv(mb_detect_encoding($data), "SHIFT-JIS", $data);
+        }
+
+        if (false === $bytes) return false;
+
+        if (0 !== strlen($bytes) % 2) return false;
+
+        for ($i = 0; $i < strlen($bytes); $i += 2) {
+            $byte = ord($bytes[$i]) & 0xff;
+
+            if (($byte < 0x81 || $byte > 0x9f) && $byte < 0xe0 || $byte > 0xeb) return false;
+        }
+
+        return true;
     }
 
     /**

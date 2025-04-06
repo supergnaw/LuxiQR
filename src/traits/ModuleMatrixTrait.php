@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace supergnaw\LuxiQR;
+namespace supergnaw\LuxiQR\traits;
 
 trait ModuleMatrixTrait
 {

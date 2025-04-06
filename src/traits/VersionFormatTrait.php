@@ -2,7 +2,12 @@
 
 declare(strict_types=1);
 
-namespace supergnaw\LuxiQR;
+namespace supergnaw\LuxiQR\traits;
+
+use supergnaw\LuxiQR\constants\CapacityTables;
+use supergnaw\LuxiQR\constants\ErrorCorrection;
+use supergnaw\LuxiQR\exception\LuxiQRException;
+use supergnaw\LuxiQR\LuxiQR;
 
 /**
  * https://www.thonky.com/qr-code-tutorial/format-version-tables
@@ -20,7 +25,7 @@ trait VersionFormatTrait
     protected function detectVersion(): int
     {
         for ($v = 1; $v <= 40; $v++) {
-            if (strlen($this->data) <= LuxiQR::CHARACTER_LIMIT_TABLE[$v][$this->eccLevel][$this->mode]) {
+            if (strlen($this->data) <= CapacityTables::CHARACTER[$v][$this->eccLevel][$this->mode]) {
                 return $v;
             }
         }
@@ -151,7 +156,7 @@ trait VersionFormatTrait
     protected function getFormatString(): string
     {
         return match ($this->eccLevel) {
-            self::EC_LOW => match ($this->maskVersion) {
+            ErrorCorrection::LOW => match ($this->maskVersion) {
                 0 => "111011111000100",
                 1 => "111001011110011",
                 2 => "111110110101010",
@@ -162,7 +167,7 @@ trait VersionFormatTrait
                 7 => "110100101110110",
                 default => throw new LuxiQRException("Invalid mask version: {$this->maskVersion}")
             },
-            self::EC_MEDIUM => match ($this->maskVersion) {
+            ErrorCorrection::MEDIUM => match ($this->maskVersion) {
                 0 => "101010000010010",
                 1 => "101000100100101",
                 2 => "101111001111100",
@@ -173,7 +178,7 @@ trait VersionFormatTrait
                 7 => "100101010100000",
                 default => throw new LuxiQRException("Invalid mask version: {$this->maskVersion}")
             },
-            self::EC_QUARTILE => match ($this->maskVersion) {
+            ErrorCorrection::QUARTILE => match ($this->maskVersion) {
                 0 => "011010101011111",
                 1 => "011000001101000",
                 2 => "011111100110001",
@@ -184,7 +189,7 @@ trait VersionFormatTrait
                 7 => "010101111101101",
                 default => throw new LuxiQRException("Invalid mask version: {$this->maskVersion}")
             },
-            self::EC_HIGH => match ($this->maskVersion) {
+            ErrorCorrection::HIGH => match ($this->maskVersion) {
                 0 => "001011010001001",
                 1 => "001001110111110",
                 2 => "001110011100111",
@@ -254,7 +259,7 @@ trait VersionFormatTrait
      */
     protected function dataFitsInMatrix(bool $forceUpdate = true): bool
     {
-        if (strlen($this->data) <= self::CHARACTER_LIMIT_TABLE[$this->version][$this->eccLevel][$this->mode]) {
+        if (strlen($this->data) <= CapacityTables::CHARACTER[$this->version][$this->eccLevel][$this->mode]) {
             return true;
         }
 

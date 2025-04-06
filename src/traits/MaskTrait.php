@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-namespace supergnaw\LuxiQR;
+namespace supergnaw\LuxiQR\traits;
+
+use supergnaw\LuxiQR\exception\LuxiQRException;
 
 trait MaskTrait
 {

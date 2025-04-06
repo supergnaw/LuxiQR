@@ -2,9 +2,13 @@
 
 declare(strict_types=1);
 
-namespace supergnaw\LuxiQR;
+namespace supergnaw\LuxiQR\traits;
 
-trait InputValidation
+use supergnaw\LuxiQR\constants\ErrorCorrection;
+use supergnaw\LuxiQR\constants\Modes;
+use supergnaw\LuxiQR\exception\LuxiQRException;
+
+trait InputValidationTrait
 {
     /**
      * Validates input data is not empty or null
@@ -27,13 +31,13 @@ trait InputValidation
      */
     protected function validateECCLevel(string $eccLevel = null): string
     {
-        if (strlen(trim(strval($eccLevel))) == 0) return self::EC_MEDIUM;
+        if (strlen(trim(strval($eccLevel))) == 0) return ErrorCorrection::MEDIUM;
 
         return match (strtoupper(strval($eccLevel))[0]) {
-            self::EC_LOW => self::EC_LOW,
-            self::EC_QUARTILE => self::EC_QUARTILE,
-            self::EC_MEDIUM => self::EC_MEDIUM,
-            self::EC_HIGH => self::EC_HIGH,
+            ErrorCorrection::LOW => ErrorCorrection::LOW,
+            ErrorCorrection::QUARTILE => ErrorCorrection::QUARTILE,
+            ErrorCorrection::MEDIUM => ErrorCorrection::MEDIUM,
+            ErrorCorrection::HIGH => ErrorCorrection::HIGH,
             default => throw new LuxiQRException("Invalid ECC level: $eccLevel")
         };
     }
@@ -48,10 +52,10 @@ trait InputValidation
     {
         return match (strtolower(strval($mode))) {
             "" => $this->detectEncodingMode(),
-            self::NUMERIC, "numeric" => self::NUMERIC,
-            self::ALPHANUMERIC, "alphanumeric" => self::ALPHANUMERIC,
-            self::BYTE, "byte" => self::BYTE,
-            self::KANJI, "kanji" => self::KANJI,
+            Modes::NUMERIC, "numeric" => Modes::NUMERIC,
+            Modes::ALPHANUMERIC, "alphanumeric" => Modes::ALPHANUMERIC,
+            Modes::BYTE, "byte" => Modes::BYTE,
+            Modes::KANJI, "kanji" => Modes::KANJI,
             default => throw new LuxiQRException("Invalid mode: $mode")
         };
     }

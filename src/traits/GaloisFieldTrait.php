@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace supergnaw\LuxiQR;
+namespace supergnaw\LuxiQR\traits;
 
 // https://www.ijcaonline.org/archives/volume156/number1/twum-2016-ijca-912342.pdf
 // page 27-28 I think is worth reviewing to ensure this is working properly, however
@@ -22,6 +22,9 @@ namespace supergnaw\LuxiQR;
  * whole lotta iterations of these functions, reading several tutorials, white papers, and prompts with multiple
  * different LLMs to finally get working what I could.
  */
+
+use supergnaw\LuxiQR\constants\GaloisFieldTables;
+use supergnaw\LuxiQR\exception\LuxiQRException;
 
 trait GaloisFieldTrait
 {
@@ -112,9 +115,9 @@ trait GaloisFieldTrait
     {
         if (0 === $a || 0 === $b) return 0;
 
-        $log = self::LOG_TABLE[$a] + self::LOG_TABLE[$b];
+        $log = GaloisFieldTables::LOG[$a] + GaloisFieldTables::LOG[$b];
 
-        return self::EXP_TABLE[$log % 255];
+        return GaloisFieldTables::EXP[$log % 255];
     }
 
     /**
@@ -267,7 +270,7 @@ trait GaloisFieldTrait
         $lastPoly = [1];
 
         for ($d = 0; $d < $degree; $d++) {
-            $lastPoly = $this->multiplyPolynomials($lastPoly, [1, self::EXP_TABLE[$d % 255]]);
+            $lastPoly = $this->multiplyPolynomials($lastPoly, [1, GaloisFieldTables::EXP[$d % 255]]);
         }
 
         return $lastPoly;

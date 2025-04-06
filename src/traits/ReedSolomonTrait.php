@@ -2,7 +2,11 @@
 
 declare(strict_types=1);
 
-namespace supergnaw\LuxiQR;
+namespace supergnaw\LuxiQR\traits;
+
+use supergnaw\LuxiQR\constants\CapacityTables;
+use supergnaw\LuxiQR\constants\Padding;
+use supergnaw\LuxiQR\exception\LuxiQRException;
 
 trait ReedSolomonTrait
 {
@@ -18,7 +22,7 @@ trait ReedSolomonTrait
     {
         $encodedData = $this->bitsToBytes($this->encodedData);
 
-        $groups = self::BYTE_COUNT_TABLE[$this->version][$this->eccLevel]["groups"];
+        $groups = CapacityTables::BYTE[$this->version][$this->eccLevel]["groups"];
 
         $dataBlocks = [];
 
@@ -44,7 +48,7 @@ trait ReedSolomonTrait
     {
         $eccBlocks = [];
 
-        $degree = self::BYTE_COUNT_TABLE[$this->version][$this->eccLevel]["ecc"];
+        $degree = CapacityTables::BYTE[$this->version][$this->eccLevel]["ecc"];
 
         $generator = $this->getGeneratorPolynomial(degree: $degree);
 
@@ -90,8 +94,17 @@ trait ReedSolomonTrait
             }
         }
 
+        // get remainder bits
+        $remainderBits = match ($this->version) {
+            1, 7, 8, 9, 10, 11, 12, 13, 35, 36, 37, 38, 39, 40 => "",
+            2, 3, 4, 5, 6 => "0000000",
+            14, 15, 16, 17, 18, 19, 20, 28, 29, 30, 31, 32, 33, 34 => "000",
+            21, 22, 23, 24, 25, 26, 27 => "0000",
+            default => throw new LuxiQRException("Invalid version for remainder bits")
+        };
+
         $this->interleavedBlocks = $interleaved;
-        $this->bitstream = $this->bytesToBits($this->interleavedBlocks) . self::REMAINDER_BITS[$this->version];
+        $this->bitstream = $this->bytesToBits($this->interleavedBlocks) . $remainderBits;
     }
 
     /**
@@ -129,7 +142,7 @@ trait ReedSolomonTrait
             $bits .= str_pad(
                 string: decbin($byte),
                 length: 8,
-                pad_string: self::PAD_DATA,
+                pad_string: Padding::DATA,
                 pad_type: STR_PAD_LEFT
             );
         }
