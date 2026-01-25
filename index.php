@@ -33,4 +33,5 @@ $email = "example@example.com";
 $subject = "subject line";
 $body = "this is a test email";
 $qrCode = LuxiQR::Email(email: $email, subject: $subject, body: $body);
-echo $qrCode->outputTable();
+echo $qrCode->outputTable(background: "#efefef", foreground: "#66000");
+echo $qrCode->outputAscii(foreground: "#66000", background: "#efefef");

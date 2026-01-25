@@ -11,6 +11,7 @@ trait ModuleMatrixTrait
         $this->initializeMatrix();
         $this->addDataToMatrix();
         $this->applyBestMask();
+        $this->addBorder();
     }
 
     /**
@@ -252,9 +253,21 @@ trait ModuleMatrixTrait
         }
     }
 
+    /**
+     * QR Code standard says to add a border of 4 white modules on all sides
+     *
+     * @param array $input
+     * @return array
+     */
     private function addBorder(): void
     {
-        // TODO: the QR code standard says to add a border of 4 white modules on all sides
+        $output = [];
+
+        for ($i = 0; $i < 4; $i++) $output[] = array_fill(0, count($this->moduleMatrix[0]) + 8, 0);
+        foreach ($this->moduleMatrix as $row) $output[] = array_merge([0, 0, 0, 0], $row, [0, 0, 0, 0]);
+        for ($i = 0; $i < 4; $i++) $output[] = array_fill(0, count($this->moduleMatrix[0]) + 8, 0);
+
+        $this->moduleMatrix = $output;
     }
 }
 
