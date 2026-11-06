@@ -10,6 +10,7 @@
   },
   "require": {
     "ext-mbstring": "*",
-    "ext-iconv": "*"
+    "ext-iconv": "*",
+    "ext-gd": "*"
   }
 }

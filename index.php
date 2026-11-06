@@ -29,9 +29,17 @@ require_once './vendor/autoload.php';
 //$qrCode = LuxiQR::VCard3(givenName: $givenName, surName: $surName, phone: $phone);
 //echo $qrCode->outputTable();
 
+$foreground = "#555";
+$background = "#EEE";
+
 $email = "example@example.com";
 $subject = "subject line";
 $body = "this is a test email";
 $qrCode = LuxiQR::Email(email: $email, subject: $subject, body: $body);
-echo $qrCode->outputTable(background: "#efefef", foreground: "#66000");
-echo $qrCode->outputAscii(foreground: "#66000", background: "#efefef");
+$qrCode = new LuxiQR("Hello World!");
+//echo $qrCode->outputTable(foreground: $foreground, background: $background);
+//echo $qrCode->outputAscii(foreground: $foreground, background: $background);
+echo $qrCode->outputPNG(foreground: $foreground, background: $background, moduleSize: 16);
+
+$qrCode->
+

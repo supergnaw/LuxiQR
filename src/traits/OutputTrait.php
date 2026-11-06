@@ -92,7 +92,7 @@ trait OutputTrait
      * @param string $background
      * @return string
      */
-    public function outputAscii(string $foreground = "000", string $background = "FFF"): string
+    public function outputAscii(string $foreground = "#000", string $background = "#FFF"): string
     {
         $foreground = str_pad($foreground, 3, "0", STR_PAD_LEFT);
         $background = str_pad($background, 3, "0", STR_PAD_LEFT);
@@ -557,10 +557,49 @@ trait OutputTrait
         ];
     }
 
-    // TODO: will render a PNG image
-    public function outputPNG(): void
+    /**
+     * Renders QR code as a PNG image
+     *
+     * @param string $foreground
+     * @param string $background
+     * @param int $moduleSize
+     * @return void
+     */
+    public function outputPNG(string $foreground = "#000", string $background = "#FFF", int $moduleSize = 8): string
     {
+        // create blank output canvas
+        $canvas = imagecreatetruecolor(
+            width: count($this->moduleMatrix) * $moduleSize,
+height: count($this->moduleMatrix[0]) * $moduleSize,
+        );
 
+        $fg = self::hex2Rgb($foreground);
+        $fg = imagecolorallocatealpha($canvas, $fg["r"], $fg["g"], $fg["b"], 0);
+        $bg = self::hex2Rgb($background);
+        $bg = imagecolorallocatealpha($canvas, $bg["r"], $bg["g"], $bg["b"], 0);
+
+        imagefill($canvas, 0, 0, $bg);
+
+        for ($y = 0; $y < count($this->moduleMatrix); $y++) {
+            for ($x = 0; $x < count($this->moduleMatrix[0]); $x++) {
+                if (0 == $this->moduleMatrix[$y][$x]) continue;
+
+                imagefilledrectangle(
+                    image: $canvas,
+                    x1: $x * $moduleSize,
+                    y1: $y * $moduleSize,
+                    x2: $x * $moduleSize + $moduleSize - 1,
+                    y2: $y * $moduleSize + $moduleSize - 1,
+                    color: $fg
+                );
+            }
+        }
+
+        ob_start();
+        imagepng($canvas);
+        $imageBase64 = base64_encode(ob_get_clean());
+
+        return "<img src='data:image/png;base64,$imageBase64' />";
     }
 
     // TODO: will render a JPG image
@@ -573,5 +612,18 @@ trait OutputTrait
     public function outputSVG(): void
     {
 
+    }
+
+    protected static function hex2Rgb(string $hex): array
+    {
+        $hex = ltrim($hex, '#');
+
+        if (strlen($hex) === 3) $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+
+        return [
+            'r' => hexdec(substr($hex, 0, 2)),
+            'g' => hexdec(substr($hex, 2, 2)),
+            'b' => hexdec(substr($hex, 4, 2)),
+        ];
     }
 }
